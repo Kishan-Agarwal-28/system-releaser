@@ -11,42 +11,54 @@ The `check` command acts as a pre-flight validation step. It ensures that your c
 ## Usage
 
 ```bash
-releaser check
+releaser check [OPTIONS] [PATH]
 ```
+
+### Options
+
+| Flag | Alias | Description |
+| --- | --- | --- |
+| `--upload` | `--publish` | Require publishing tokens (`GITHUB_TOKEN`, `CHOCO_API_KEY`) and fail if missing |
+| `--strict` | | Strict mode: treat all warnings as failures (exit code 1) |
 
 ## What Gets Checked?
 
-1. **Config Validity**: Parses `releaser.yaml` for syntax errors or missing required fields.
-2. **Tool Availability**: Checks if the required build tools (e.g., `cargo`, `npm`, `go`) are installed and in your `$PATH`.
-3. **Cross-Compilation Toolchains**: Verifies that requested target triples have the corresponding toolchains installed.
-4. **Permissions/Secrets**: Verifies that the `GITHUB_TOKEN` is present and has the necessary scopes for publishing.
+1. **Config Validity**: Loads and validates `releaser.yaml` syntax and fields.
+2. **Language & Toolchain**: Verifies the detected language compiler/toolchain in your `$PATH`.
+3. **Cross-Compilation Toolchains**: Checks readiness for multi-platform builds (e.g. `cargo-zigbuild`, `zig`, `cross`).
+4. **Git Repository Status**: Checks git repository initialization and working tree status.
+5. **Publishing Credentials**: Checks `GITHUB_TOKEN` and `CHOCO_API_KEY`. By default, missing tokens produce a `[WARN]` so local builds and test pipelines succeed. Pass `--upload` to require tokens before publishing.
 
 ## Example Output
 
-### Success
+### Success (with warnings)
 
 ```text
 $ releaser check
-[✓] Config syntax valid (releaser.yaml)
-[✓] Build tool found: cargo (1.75.0)
-[✓] Cross-compilation targets valid
-[✓] GITHUB_TOKEN detected
-[SUCCESS] Environment is ready for release!
+[PASS]   Configuration File       : Loaded valid config from 'releaser.yaml'
+[PASS]   Language Detection       : Identified Rust (Confidence: High)
+[PASS]   Build Toolchain          : Found toolchain executable 'cargo' in PATH
+[PASS]   Git Repository           : Project is a git repository
+[WARN]   Git Working Tree         : Working directory has uncommitted changes
+[WARN]   GitHub Token             : No GitHub token found. Pass --upload to enforce.
+[WARN]   Homebrew Tap             : No custom Homebrew tap specified. Formula will be generated locally in dist/.
+
+All checks passed! The project is ready for release.
 ```
 
-### Failure
+### With --upload (Missing Token Fails)
 
 ```text
-$ releaser check
-[✓] Config syntax valid (releaser.yaml)
-[✗] Build tool not found: cargo
-[!] Ensure Rust is installed and in your PATH.
-[✓] GITHUB_TOKEN detected
-[ERROR] Pre-flight checks failed.
+$ releaser check --upload
+[PASS]   Configuration File       : Loaded valid config from 'releaser.yaml'
+[PASS]   Language Detection       : Identified Rust (Confidence: High)
+[FAIL]   GitHub Token             : Missing GITHUB_TOKEN. Required for publishing releases / package manifests (WinGet, GitHub Releases). Set GITHUB_TOKEN or run in CI mode.
+
+Some checks failed. Resolve the issues above before releasing.
 ```
 
-## Common Failures
+## Common Failures & Fixes
 
-- **Missing Tools**: The build tool required by your project isn't installed. Fix this by installing the standard SDK for your language.
-- **Invalid YAML**: Typo in `releaser.yaml`. Check for indentation errors.
-- **Missing Token**: `GITHUB_TOKEN` is not set in the environment. Export it using `export GITHUB_TOKEN=...`.
+- **Missing Tools**: The build tool required by your project is not installed. Fix this by installing the standard toolchain for your language.
+- **Missing Token on Upload**: When running with `--upload` or publishing in CI, set `GITHUB_TOKEN` and/or `CHOCO_API_KEY`.
+- **Strict Mode Failure**: When running with `--strict`, any warning (such as uncommitted changes or missing optional tap) will result in exit code 1.

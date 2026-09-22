@@ -483,17 +483,29 @@ fn test_manifest_generators_escaping() {
         macports::generate_macports_portfile,
         nix::generate_nix_flake,
         pacman::generate_pkgbuild,
+        rpm::generate_rpm_spec,
         winget::generate_winget_manifest,
     };
 
     // Homebrew Ruby interpolation escaping
     let rb = generate_homebrew_formula(
-        "evil-app", "1.0.0", "Desc with #{system('id')} and \"quotes\"",
+        "evil-app", "1.0.0", "Desc with #{system('id')} and $SECRET and `whoami` and \"quotes\"",
         "https://evil.com/#{1+1}", "evil/repo",
         None, None, None, None,
     );
     assert!(!rb.contains("desc \"Desc with #{system('id')}"));
-    assert!(rb.contains("desc \"Desc with \\#{system('id')}"));
+    assert!(rb.contains("desc \"Desc with \\#{system('id')} and \\$SECRET and \\`whoami\\` and \\\"quotes\\\"\""));
+
+    // RPM spec macro and shell expansion escaping
+    let rpm = generate_rpm_spec(
+        "evil-app", "1.0.0", "Desc with %{evil_macro} and $VAR and `whoami` and \"quotes\"",
+        "MIT", "https://evil.com", "evil/repo",
+    );
+    assert!(rpm.contains("%%{evil_macro}"));
+    assert!(!rpm.contains(" %{evil_macro}"));
+    assert!(!rpm.contains("`whoami`"));
+    assert!(rpm.contains("whoami"));
+    assert!(rpm.contains(r"\$VAR"));
 
     // Pacman bash subshell escaping
     let pkg = generate_pkgbuild(

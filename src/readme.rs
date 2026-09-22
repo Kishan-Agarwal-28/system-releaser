@@ -33,26 +33,24 @@ pub fn generate_installation_markdown(
     out.push_str("\n## Installation\n\n");
 
     // 1. One-Liner Installers
-    if install_scripts_enabled {
-        if let Some(repo) = repository {
-            out.push_str("### 1. One-Line Installers (Recommended)\n\n");
-            out.push_str("#### Linux & macOS (POSIX Shell)\n");
-            out.push_str("```bash\n");
-            out.push_str(&format!(
-                "curl -fsSL https://raw.githubusercontent.com/{}/main/{}/install.sh | sh\n",
-                repo, dist
-            ));
-            out.push_str("```\n\n");
+    if let (true, Some(repo)) = (install_scripts_enabled, repository) {
+        out.push_str("### 1. One-Line Installers (Recommended)\n\n");
+        out.push_str("#### Linux & macOS (POSIX Shell)\n");
+        out.push_str("```bash\n");
+        out.push_str(&format!(
+            "curl -fsSL https://raw.githubusercontent.com/{}/main/{}/install.sh | sh\n",
+            repo, dist
+        ));
+        out.push_str("```\n\n");
 
-            out.push_str("#### Windows (PowerShell)\n");
-            out.push_str("```powershell\n");
-            out.push_str(&format!(
-                "irm https://raw.githubusercontent.com/{}/main/{}/install.ps1 | iex\n",
-                repo, dist
-            ));
-            out.push_str("```\n\n");
-            out.push_str("---\n\n");
-        }
+        out.push_str("#### Windows (PowerShell)\n");
+        out.push_str("```powershell\n");
+        out.push_str(&format!(
+            "irm https://raw.githubusercontent.com/{}/main/{}/install.ps1 | iex\n",
+            repo, dist
+        ));
+        out.push_str("```\n\n");
+        out.push_str("---\n\n");
     }
 
     // 2. Pre-Built Binary Direct Downloads
@@ -201,13 +199,16 @@ pub fn inject_installation_guide(original_content: &str, guide: &str, app_name: 
     }
 
     // Case 2: Markers already present
-    if let Some(start_idx) = original_content.find(INSTALL_MARKER_START) {
-        if let Some(end_offset) = original_content[start_idx..].find(INSTALL_MARKER_END) {
+    let marker_span = original_content.find(INSTALL_MARKER_START).and_then(|start_idx| {
+        original_content[start_idx..].find(INSTALL_MARKER_END).map(|end_offset| {
             let end_idx = start_idx + end_offset + INSTALL_MARKER_END.len();
-            let before = &original_content[..start_idx];
-            let after = &original_content[end_idx..];
-            return format!("{}{}{}", before.trim_end(), format!("\n\n{}\n\n", guide), after.trim_start());
-        }
+            (start_idx, end_idx)
+        })
+    });
+    if let Some((start_idx, end_idx)) = marker_span {
+        let before = &original_content[..start_idx];
+        let after = &original_content[end_idx..];
+        return format!("{}\n\n{}\n\n{}", before.trim_end(), guide, after.trim_start());
     }
 
     // Case 3: Existing `## Installation` section (without markers)

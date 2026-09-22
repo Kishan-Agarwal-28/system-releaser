@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use serde::{Deserialize, Serialize};
 
@@ -39,6 +39,8 @@ pub struct DetectionResult {
     pub evidence: Vec<String>,
     pub language_breakdown: Vec<LanguageStat>,
     pub total_source_files: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_root: Option<String>,
 }
 
 const IGNORED_DIRS: &[&str] = &[
@@ -234,6 +236,79 @@ const MANIFEST_RULES: &[ManifestRule] = &[
     },
 ];
 
+/// Check if any ancestor directory represents a monorepo workspace root
+pub fn find_enclosing_workspace_root(start_dir: &Path) -> Option<(PathBuf, &'static str)> {
+    let mut current = start_dir.parent();
+    let mut depth = 0;
+    while let Some(parent) = current {
+        depth += 1;
+        if depth > 6 {
+            break;
+        }
+
+        // Check for Cargo workspace
+        let cargo_toml = parent.join("Cargo.toml");
+        if cargo_toml.is_file()
+            && fs::read_to_string(&cargo_toml)
+                .map(|c| c.contains("[workspace]"))
+                .unwrap_or(false)
+        {
+            return Some((parent.to_path_buf(), "Cargo workspace ([workspace])"));
+        }
+
+        // Check for pnpm workspace
+        if parent.join("pnpm-workspace.yaml").is_file() {
+            return Some((parent.to_path_buf(), "pnpm workspace (pnpm-workspace.yaml)"));
+        }
+
+        // Check for npm/yarn/bun workspaces in package.json
+        let pkg_json = parent.join("package.json");
+        if pkg_json.is_file()
+            && fs::read_to_string(&pkg_json)
+                .map(|c| c.contains("\"workspaces\""))
+                .unwrap_or(false)
+        {
+            return Some((parent.to_path_buf(), "npm/yarn/bun workspace (package.json workspaces)"));
+        }
+
+        // Check for lerna, turborepo, nx
+        if parent.join("lerna.json").is_file() {
+            return Some((parent.to_path_buf(), "Lerna workspace (lerna.json)"));
+        }
+        if parent.join("turbo.json").is_file() {
+            return Some((parent.to_path_buf(), "Turborepo workspace (turbo.json)"));
+        }
+        if parent.join("nx.json").is_file() {
+            return Some((parent.to_path_buf(), "Nx workspace (nx.json)"));
+        }
+
+        // Check for Go workspace
+        if parent.join("go.work").is_file() {
+            return Some((parent.to_path_buf(), "Go workspace (go.work)"));
+        }
+
+        // Check for Gradle multi-project
+        let settings_gradle = parent.join("settings.gradle");
+        let settings_gradle_kts = parent.join("settings.gradle.kts");
+        if settings_gradle.is_file() || settings_gradle_kts.is_file() {
+            let content = fs::read_to_string(&settings_gradle)
+                .or_else(|_| fs::read_to_string(&settings_gradle_kts))
+                .unwrap_or_default();
+            if content.contains("include(") || content.contains("include ") || content.contains("includeBuild") {
+                return Some((parent.to_path_buf(), "Gradle multi-project (settings.gradle)"));
+            }
+        }
+
+        // Stop ascending at git root boundary
+        if parent.join(".git").exists() {
+            break;
+        }
+
+        current = parent.parent();
+    }
+    None
+}
+
 /// Detects the language of a project located at `root_path`.
 pub fn detect_language(root_path: impl AsRef<Path>) -> Result<DetectionResult, std::io::Error> {
     let path = root_path.as_ref();
@@ -247,6 +322,19 @@ pub fn detect_language(root_path: impl AsRef<Path>) -> Result<DetectionResult, s
     let mut evidence = Vec::new();
     let mut detected_manifests = Vec::new();
     let mut manifest_languages: HashMap<Language, Vec<String>> = HashMap::new();
+
+    // Check for enclosing workspace root (monorepo awareness)
+    let workspace_info = find_enclosing_workspace_root(path);
+    let workspace_root = if let Some((ref ws_path, desc)) = workspace_info {
+        evidence.push(format!(
+            "Detected enclosing workspace root at '{}' ({})",
+            ws_path.display(),
+            desc
+        ));
+        Some(ws_path.to_string_lossy().to_string())
+    } else {
+        None
+    };
 
     // 1. Check exact manifest files in root directory
     for rule in MANIFEST_RULES {
@@ -427,6 +515,7 @@ pub fn detect_language(root_path: impl AsRef<Path>) -> Result<DetectionResult, s
         evidence,
         language_breakdown: breakdown,
         total_source_files,
+        workspace_root,
     })
 }
 
@@ -644,4 +733,25 @@ mod tests {
         assert_eq!(result.primary_language, Language::Rust);
         assert!(result.detected_manifests.iter().any(|m| m.contains("Cargo.toml")));
     }
+
+    #[test]
+    fn test_detect_nested_package_with_workspace_root_awareness() {
+        let temp = TempDirGuard::new("nested_workspace");
+        temp.create_file("Cargo.toml", "[workspace]\nmembers = [\"packages/cli\"]\n");
+        let pkg_dir = temp.path.join("packages").join("cli");
+        fs::create_dir_all(&pkg_dir).unwrap();
+        fs::write(pkg_dir.join("Cargo.toml"), "[package]\nname = \"cli\"\nversion = \"0.1.0\"\n").unwrap();
+        fs::write(pkg_dir.join("main.rs"), "fn main() {}").unwrap();
+
+        let result = detect_language(&pkg_dir).unwrap();
+        assert_eq!(result.primary_language, Language::Rust);
+        assert!(result.workspace_root.is_some());
+        let ws_root = result.workspace_root.unwrap();
+        assert_eq!(
+            std::fs::canonicalize(&ws_root).unwrap(),
+            std::fs::canonicalize(&temp.path).unwrap()
+        );
+        assert!(result.evidence.iter().any(|e| e.contains("Detected enclosing workspace root")));
+    }
 }
+

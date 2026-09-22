@@ -18,6 +18,14 @@ pub enum CheckStatus {
     Fail,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CheckOptions {
+    /// Require tokens needed for publishing (GITHUB_TOKEN, CHOCO_API_KEY)
+    pub require_tokens: bool,
+    /// Strict mode: fail on warnings as well as failures
+    pub strict: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct CheckReport {
     pub items: Vec<CheckItem>,
@@ -27,9 +35,17 @@ impl CheckReport {
     pub fn is_clean(&self) -> bool {
         !self.items.iter().any(|i| i.status == CheckStatus::Fail)
     }
+
+    pub fn has_warnings(&self) -> bool {
+        self.items.iter().any(|i| i.status == CheckStatus::Warning)
+    }
 }
 
 pub fn run_preflight_checks(project_dir: &Path) -> CheckReport {
+    run_preflight_checks_with_options(project_dir, CheckOptions::default())
+}
+
+pub fn run_preflight_checks_with_options(project_dir: &Path, options: CheckOptions) -> CheckReport {
     let mut items = Vec::new();
 
     // 1. Check project configuration
@@ -185,8 +201,6 @@ pub fn run_preflight_checks(project_dir: &Path) -> CheckReport {
     let has_github_token = global_cfg.resolve_github_token().is_some();
 
     if let Some(ref cfg) = project_config {
-        let is_local = cfg.build.mode == crate::config::BuildMode::Local;
-
         // Does the project require GitHub token for publishing?
         let requires_github = cfg.package_managers.enabled.contains(&crate::package_manager::PackageManager::Winget)
             || cfg.repository.is_some();
@@ -197,13 +211,19 @@ pub fn run_preflight_checks(project_dir: &Path) -> CheckReport {
                 status: CheckStatus::Pass,
                 message: "Found GitHub token (via env or global config)".to_string(),
             });
-        } else if is_local && requires_github {
+        } else if options.require_tokens && requires_github {
             items.push(CheckItem {
                 name: "GitHub Token".to_string(),
                 status: CheckStatus::Fail,
-                message: "Missing GITHUB_TOKEN. Required for publishing releases / package manifests (WinGet, GitHub Releases). Set GITHUB_TOKEN or run in CI mode.".to_string(),
+                message: "Missing GITHUB_TOKEN. Required for publishing releases / package manifests (WinGet, GitHub Releases). Set GITHUB_TOKEN or configure credentials.".to_string(),
             });
-        } else if is_local {
+        } else if requires_github {
+            items.push(CheckItem {
+                name: "GitHub Token".to_string(),
+                status: CheckStatus::Warning,
+                message: "No GitHub token found. Required for publishing to GitHub Releases / WinGet, but optional for local builds and manifests generation. Pass --upload to enforce.".to_string(),
+            });
+        } else {
             items.push(CheckItem {
                 name: "GitHub Token".to_string(),
                 status: CheckStatus::Warning,
@@ -219,11 +239,17 @@ pub fn run_preflight_checks(project_dir: &Path) -> CheckReport {
                     status: CheckStatus::Pass,
                     message: "Found Chocolatey API key (via CHOCO_API_KEY or global config)".to_string(),
                 });
-            } else if is_local {
+            } else if options.require_tokens {
                 items.push(CheckItem {
                     name: "Chocolatey API Key".to_string(),
                     status: CheckStatus::Fail,
                     message: "Missing Chocolatey API key. Set CHOCO_API_KEY or configure global config to publish to Chocolatey.".to_string(),
+                });
+            } else {
+                items.push(CheckItem {
+                    name: "Chocolatey API Key".to_string(),
+                    status: CheckStatus::Warning,
+                    message: "No Chocolatey API key found. Required for publishing to Chocolatey, but optional for local builds and package generation. Pass --upload to enforce.".to_string(),
                 });
             }
         }
@@ -272,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    fn test_check_fails_when_winget_requires_token() {
+    fn test_check_warns_by_default_and_fails_with_upload_when_winget_requires_token() {
         let dir = tempdir().unwrap();
         let releaser_yaml = r#"
 name: test-app
@@ -288,8 +314,21 @@ package_managers:
         unsafe { std::env::remove_var("GITHUB_TOKEN"); }
         unsafe { std::env::remove_var("SYSTEM_RELEASER_GITHUB_TOKEN"); }
 
-        let report = run_preflight_checks(dir.path());
-        assert!(report.items.iter().any(|i| i.name == "GitHub Token" && i.status == CheckStatus::Fail));
+        // Default run_preflight_checks produces a Warning, not Fail (is_clean() remains true)
+        let report_default = run_preflight_checks(dir.path());
+        assert!(report_default.is_clean());
+        assert!(report_default.items.iter().any(|i| i.name == "GitHub Token" && i.status == CheckStatus::Warning));
+
+        // When require_tokens is true (--upload / --publish), it produces a Fail
+        let report_upload = run_preflight_checks_with_options(
+            dir.path(),
+            CheckOptions {
+                require_tokens: true,
+                strict: false,
+            },
+        );
+        assert!(!report_upload.is_clean());
+        assert!(report_upload.items.iter().any(|i| i.name == "GitHub Token" && i.status == CheckStatus::Fail));
 
         if let Some(t) = old_token {
             unsafe { std::env::set_var("GITHUB_TOKEN", t); }
@@ -297,7 +336,7 @@ package_managers:
     }
 
     #[test]
-    fn test_check_fails_when_choco_requires_key() {
+    fn test_check_warns_by_default_and_fails_with_upload_when_choco_requires_key() {
         let dir = tempdir().unwrap();
         let releaser_yaml = r#"
 name: test-app
@@ -310,8 +349,21 @@ package_managers:
         let old_key = std::env::var("CHOCO_API_KEY").ok();
         unsafe { std::env::remove_var("CHOCO_API_KEY"); }
 
-        let report = run_preflight_checks(dir.path());
-        assert!(report.items.iter().any(|i| i.name == "Chocolatey API Key" && i.status == CheckStatus::Fail));
+        // Default run_preflight_checks produces a Warning, not Fail
+        let report_default = run_preflight_checks(dir.path());
+        assert!(report_default.is_clean());
+        assert!(report_default.items.iter().any(|i| i.name == "Chocolatey API Key" && i.status == CheckStatus::Warning));
+
+        // When require_tokens is true (--upload / --publish), it produces a Fail
+        let report_upload = run_preflight_checks_with_options(
+            dir.path(),
+            CheckOptions {
+                require_tokens: true,
+                strict: false,
+            },
+        );
+        assert!(!report_upload.is_clean());
+        assert!(report_upload.items.iter().any(|i| i.name == "Chocolatey API Key" && i.status == CheckStatus::Fail));
 
         if let Some(k) = old_key {
             unsafe { std::env::set_var("CHOCO_API_KEY", k); }

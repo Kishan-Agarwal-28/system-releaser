@@ -5,7 +5,7 @@ use semver::Version;
 
 use crate::archive::{compute_sha256, create_tar_gz, create_zip, generate_checksums_file};
 use crate::builder::build_target;
-use crate::check::run_preflight_checks;
+use crate::check::{run_preflight_checks_with_options, CheckOptions};
 use crate::config::ProjectConfig;
 use crate::detector::detect_language;
 use crate::generators::{generate_all_manifests, ManifestGenerationContext};
@@ -39,20 +39,16 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
     let (config, _) = ProjectConfig::load_from_dir(dir)?
         .ok_or("No releaser.yaml found. Please run 'system-releaser init' first.")?;
 
-    // 2. Pre-flight checks — only block on hard failures (missing config, bad toolchain).
+    // 2. Pre-flight checks - only block on hard failures (missing config, bad toolchain).
     // A dirty git tree is expected when the user hasn't committed yet; we warn but don't block.
     // In dry-run mode, missing remote publishing tokens do not block local build & packaging verification.
-    let preflight = run_preflight_checks(dir);
+    let preflight_options = CheckOptions {
+        require_tokens: false,
+        strict: false,
+    };
+    let preflight = run_preflight_checks_with_options(dir, preflight_options);
     let hard_failures: Vec<_> = preflight.items.iter()
-        .filter(|i| {
-            if i.status != crate::check::CheckStatus::Fail {
-                return false;
-            }
-            if options.dry_run && (i.name == "GitHub Token" || i.name == "Chocolatey API Key") {
-                return false;
-            }
-            true
-        })
+        .filter(|i| i.status == crate::check::CheckStatus::Fail)
         .collect();
     if !hard_failures.is_empty() {
         let msgs: Vec<_> = hard_failures.iter().map(|i| format!("  - {}: {}", i.name, i.message)).collect();
@@ -269,10 +265,10 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
                     }
                 }
             } else {
-                println!("Note: No 'repository' configured in releaser.yaml and GITHUB_REPOSITORY not set — skipping GitHub Release upload.");
+                println!("Note: No 'repository' configured in releaser.yaml and GITHUB_REPOSITORY not set - skipping GitHub Release upload.");
             }
         } else {
-            println!("Note: GITHUB_TOKEN not set — skipping GitHub Release upload.");
+            println!("Note: GITHUB_TOKEN not set - skipping GitHub Release upload.");
         }
     }
 
@@ -306,16 +302,14 @@ pub fn resolve_repository(project_dir: &Path, configured: Option<&str>) -> Optio
     }
 
     // 2. Check git remote origin URL
-    if let Ok(out) = std::process::Command::new("git")
+    let git_cmd = std::process::Command::new("git")
         .args(["config", "--get", "remote.origin.url"])
         .current_dir(project_dir)
-        .output()
-    {
-        if out.status.success() {
-            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if let Some(repo) = parse_repo_from_git_url(&url) {
-                return Some(repo);
-            }
+        .output();
+    if let Some(out) = git_cmd.ok().filter(|o| o.status.success()) {
+        let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if let Some(repo) = parse_repo_from_git_url(&url) {
+            return Some(repo);
         }
     }
 

@@ -19,7 +19,10 @@ pub mod version;
 
 pub use archive::{compute_sha256, create_tar_gz, create_zip, generate_checksums_file};
 pub use builder::{build_target, BuildResult};
-pub use check::{run_preflight_checks, CheckItem, CheckReport, CheckStatus};
+pub use check::{
+    run_preflight_checks, run_preflight_checks_with_options, CheckItem, CheckOptions, CheckReport,
+    CheckStatus,
+};
 pub use ci::generate_github_action_workflow;
 pub use config::{
     BuildConfig, BuildMode, GlobalConfig, InstallScriptsConfig, PackageManagersConfig,

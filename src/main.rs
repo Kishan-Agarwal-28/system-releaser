@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::process;
 use system_releaser::{
     detect_language, execute_release, generate_github_action_workflow, init_project,
-    run_preflight_checks, run_project_tests, CheckStatus, InitOptions, Language, ReleaseOptions,
-    VersionBump,
+    run_preflight_checks_with_options, run_project_tests, CheckOptions, CheckStatus, InitOptions,
+    Language, ReleaseOptions, VersionBump,
 };
 
 #[derive(Parser, Debug)]
@@ -86,6 +86,14 @@ enum Commands {
         /// Target project directory
         #[arg(default_value = ".")]
         path: PathBuf,
+
+        /// Require credentials for remote publishing (GITHUB_TOKEN, CHOCO_API_KEY)
+        #[arg(long, alias = "publish")]
+        upload: bool,
+
+        /// Strict mode: fail on warnings as well as errors
+        #[arg(long)]
+        strict: bool,
     },
 
     /// Run the project's native test suite
@@ -193,11 +201,15 @@ fn main() {
                 }
             }
         }
-        Some(Commands::Check { path }) => {
+        Some(Commands::Check { path, upload, strict }) => {
             let target_dir = resolve_path(&path);
             println!("Running preflight release checks for '{}'...\n", target_dir.display());
 
-            let report = run_preflight_checks(&target_dir);
+            let options = CheckOptions {
+                require_tokens: upload,
+                strict,
+            };
+            let report = run_preflight_checks_with_options(&target_dir, options);
             for item in &report.items {
                 let badge = match item.status {
                     CheckStatus::Pass => "[PASS]",
@@ -208,10 +220,16 @@ fn main() {
             }
 
             println!();
-            if report.is_clean() {
+            let has_failures = report.items.iter().any(|i| i.status == CheckStatus::Fail);
+            let has_warnings = report.items.iter().any(|i| i.status == CheckStatus::Warning);
+
+            if !has_failures && (!strict || !has_warnings) {
                 println!("All checks passed! The project is ready for release.");
-            } else {
+            } else if has_failures {
                 eprintln!("Some checks failed. Resolve the issues above before releasing.");
+                process::exit(1);
+            } else {
+                eprintln!("Strict check failed due to warnings.");
                 process::exit(1);
             }
         }
@@ -386,6 +404,11 @@ fn handle_detect(path: PathBuf, short: bool, json: bool, verbose: bool) {
 
             if let Some(tool) = result.primary_language.default_tool() {
                 println!("Build/Package Tool: {}", tool);
+            }
+
+            if let Some(ref ws) = result.workspace_root {
+                println!("Workspace Root: {}", ws);
+                println!("  (Notice: Detected package inside a monorepo workspace. Run 'system-releaser detect' at root or configure this sub-package directly.)");
             }
 
             if !result.detected_manifests.is_empty() {

@@ -77,9 +77,15 @@ fn to_camel_case(s: &str) -> String {
 }
 
 fn escape_ruby_str(s: &str) -> String {
-    s.replace('\\', "\\\\")
+    s.lines()
+        .next()
+        .unwrap_or("")
+        .trim()
+        .replace('\\', "\\\\")
         .replace('"', "\\\"")
-        .replace("#{", "\\#{")
+        .replace('#', "\\#")
+        .replace('$', "\\$")
+        .replace('`', "\\`")
 }
 
 #[cfg(test)]
@@ -105,4 +111,29 @@ mod tests {
         assert!(formula.contains("sha256 \"sha_arm\""));
         assert!(formula.contains("bin.install \"my-tool\""));
     }
+
+    #[test]
+    fn test_homebrew_formula_escaping() {
+        let formula = generate_homebrew_formula(
+            "bad-tool",
+            "1.0.0",
+            "A tool with \"quotes\" & <special> chars $VAR `backtick` #{1+1}",
+            "https://bad.tool",
+            "https://github.com/org/bad-tool",
+            None,
+            None,
+            None,
+            None,
+        );
+
+        // $VAR escaped
+        assert!(formula.contains(r"\$VAR"));
+        // #{1+1} escaped
+        assert!(formula.contains(r"\#{1+1}"));
+        // backtick escaped
+        assert!(formula.contains(r"\`backtick\`"));
+        // quotes escaped
+        assert!(formula.contains(r#"\"quotes\""#));
+    }
 }
+

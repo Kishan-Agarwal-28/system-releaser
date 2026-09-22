@@ -232,16 +232,72 @@ pub(crate) fn execute_tool_or_fallback(
         None
     };
 
+    let resolve_artifact_src = |expected: Option<&Path>| -> Option<PathBuf> {
+        if let Some(found) = locate_artifact(expected) {
+            return Some(found);
+        }
+        if matches!(language, Language::Java | Language::Kotlin | Language::Scala | Language::Clojure) {
+            let search_dirs = [
+                project_dir.join("target"),
+                project_dir.join("build").join("libs"),
+                project_dir.join("dist"),
+                project_dir.join("bin"),
+            ];
+            for s_dir in &search_dirs {
+                if let Some(jar) = find_jar_artifact(s_dir, &binary_name) {
+                    return Some(jar);
+                }
+            }
+        }
+        None
+    };
+
+    let deploy_artifact = |src: &Path| -> Result<(), Box<dyn std::error::Error>> {
+        if src == target_binary {
+            return Ok(());
+        }
+        if let Some(parent) = target_binary.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let is_jar = src.extension().and_then(|e| e.to_str()) == Some("jar");
+        if is_jar {
+            // 1. Copy the standalone .jar into the destination directory as <binary_name>.jar
+            let dest_jar = target_binary.with_extension("jar");
+            let _ = fs::copy(src, &dest_jar);
+
+            // 2. Create self-executing JAR launcher for the binary
+            let mut launcher = Vec::new();
+            launcher.extend_from_slice(b"#!/bin/sh\nexec java -jar \"$0\" \"$@\"\n");
+            if let Ok(jar_bytes) = fs::read(src) {
+                launcher.extend_from_slice(&jar_bytes);
+                let _ = fs::write(target_binary, launcher);
+            } else {
+                let _ = fs::copy(src, target_binary);
+            }
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(target_binary, fs::Permissions::from_mode(0o755));
+            }
+
+            // 3. For Windows, also generate a batch wrapper <binary_name>.cmd
+            let cmd_wrapper = target_binary.with_extension("cmd");
+            let bat_content = format!("@echo off\r\njava -jar \"%~dp0{}.jar\" %*\r\n", binary_name);
+            let _ = fs::write(cmd_wrapper, bat_content);
+        } else {
+            fs::copy(src, target_binary)?;
+        }
+        Ok(())
+    };
+
     let output_result = cmd.output();
     match output_result {
         Ok(out) if out.status.success() => {
-            let artifact_src = locate_artifact(expected_artifact);
+            let artifact_src = resolve_artifact_src(expected_artifact);
 
-            if let Some(src) = artifact_src.filter(|p| p != target_binary) {
-                if let Some(parent) = target_binary.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::copy(&src, target_binary)?;
+            if let Some(ref src) = artifact_src {
+                deploy_artifact(src)?;
             }
 
             if !target_binary.is_file() {
@@ -293,20 +349,17 @@ pub(crate) fn execute_tool_or_fallback(
                 } else {
                     eprintln!(
                         "WARNING: Cross-compilation for target '{}' failed. \
-                         Falling back to host binary — the packaged artifact will be the WRONG architecture.",
+                         Falling back to host binary - the packaged artifact will be the WRONG architecture.",
                         target
                     );
                 }
 
                 match host_cmd.output() {
                     Ok(host_out) if host_out.status.success() => {
-                        let artifact_src = locate_artifact(expected_artifact);
+                        let artifact_src = resolve_artifact_src(expected_artifact);
 
-                        if let Some(src) = artifact_src.filter(|p| p != target_binary) {
-                            if let Some(parent) = target_binary.parent() {
-                                fs::create_dir_all(parent)?;
-                            }
-                            fs::copy(&src, target_binary)?;
+                        if let Some(ref src) = artifact_src {
+                            deploy_artifact(src)?;
                         }
                         if !target_binary.is_file() {
                             if test_mode {

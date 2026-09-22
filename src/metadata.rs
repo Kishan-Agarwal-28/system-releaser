@@ -23,8 +23,16 @@ impl ProjectMetadata {
             Language::TypeScript | Language::JavaScript => Self::extract_package_json(root_path),
             Language::Python => Self::extract_pyproject(root_path),
             Language::Go => Self::extract_go_mod(root_path),
+            Language::Java | Language::Kotlin | Language::Scala | Language::Clojure => {
+                let pom = Self::extract_maven_pom(root_path);
+                if pom.name.is_some() {
+                    pom
+                } else {
+                    Self::extract_gradle(root_path)
+                }
+            }
             _ => {
-                // Fallback: try Cargo.toml, then package.json, then pyproject.toml
+                // Fallback: try Cargo.toml, then package.json, pom.xml, pyproject.toml, go.mod
                 let cargo = Self::extract_cargo(root_path);
                 if cargo.name.is_some() {
                     return cargo;
@@ -33,7 +41,15 @@ impl ProjectMetadata {
                 if pkg.name.is_some() {
                     return pkg;
                 }
-                Self::extract_pyproject(root_path)
+                let pom = Self::extract_maven_pom(root_path);
+                if pom.name.is_some() {
+                    return pom;
+                }
+                let py = Self::extract_pyproject(root_path);
+                if py.name.is_some() {
+                    return py;
+                }
+                Self::extract_go_mod(root_path)
             }
         }
     }
@@ -176,6 +192,121 @@ impl ProjectMetadata {
 
         meta
     }
+
+    /// Extract from Maven pom.xml
+    pub fn extract_maven_pom(root_path: &Path) -> Self {
+        let pom_path = root_path.join("pom.xml");
+        let Ok(content) = fs::read_to_string(pom_path) else {
+            return Self::default();
+        };
+
+        let mut meta = Self::default();
+        // Prefer <name>, fallback to <artifactId>
+        let name = extract_xml_tag(&content, "name")
+            .or_else(|| extract_xml_tag(&content, "artifactId"));
+        let version = extract_xml_tag(&content, "version");
+        let description = extract_xml_tag(&content, "description");
+        let url = extract_xml_tag(&content, "url");
+
+        meta.name = name;
+        meta.version = version;
+        meta.description = description;
+        meta.homepage = url.clone();
+        meta.repository = url;
+
+        meta
+    }
+
+    /// Extract from Gradle build files (settings.gradle / build.gradle)
+    pub fn extract_gradle(root_path: &Path) -> Self {
+        let mut meta = Self::default();
+
+        // 1. Check settings.gradle / settings.gradle.kts for rootProject.name
+        for settings_file in &["settings.gradle", "settings.gradle.kts"] {
+            if let Ok(content) = fs::read_to_string(root_path.join(settings_file)) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("rootProject.name") {
+                        if let Some(name) = trimmed.split('=').nth(1) {
+                            let clean = name.trim().trim_matches(|c| c == '\'' || c == '"' || c == ' ');
+                            if !clean.is_empty() {
+                                meta.name = Some(clean.to_string());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if meta.name.is_some() {
+                break;
+            }
+        }
+
+        // 2. Check build.gradle / build.gradle.kts for version and description
+        for build_file in &["build.gradle", "build.gradle.kts"] {
+            if let Ok(content) = fs::read_to_string(root_path.join(build_file)) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("version") && meta.version.is_none() {
+                        if let Some(v) = trimmed.split('=').nth(1) {
+                            let clean = v.trim().trim_matches(|c| c == '\'' || c == '"' || c == ' ');
+                            if !clean.is_empty() {
+                                meta.version = Some(clean.to_string());
+                            }
+                        }
+                    }
+                    if trimmed.starts_with("description") && meta.description.is_none() {
+                        if let Some(d) = trimmed.split('=').nth(1) {
+                            let clean = d.trim().trim_matches(|c| c == '\'' || c == '"' || c == ' ');
+                            if !clean.is_empty() {
+                                meta.description = Some(clean.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        meta
+    }
+}
+
+/// Simple helper to extract top-level XML tag content e.g. <name>val</name>
+fn extract_xml_tag(content: &str, tag: &str) -> Option<String> {
+    let open_tag = format!("<{}>", tag);
+    let close_tag = format!("</{}>", tag);
+
+    // Prefer looking in top-level header before <dependencies> or <build>
+    let search_area = if let Some(idx) = content.find("<dependencies>") {
+        &content[..idx]
+    } else if let Some(idx) = content.find("<build>") {
+        &content[..idx]
+    } else {
+        content
+    };
+
+    if let Some(start) = search_area.find(&open_tag) {
+        let val_start = start + open_tag.len();
+        if let Some(end) = search_area[val_start..].find(&close_tag) {
+            let val = search_area[val_start..val_start + end].trim();
+            if !val.is_empty() {
+                return Some(val.to_string());
+            }
+        }
+    }
+
+    // Fallback: search entire document
+    if let Some(start) = content.find(&open_tag) {
+        let val_start = start + open_tag.len();
+        if let Some(end) = content[val_start..].find(&close_tag) {
+            let val = content[val_start..val_start + end].trim();
+            if !val.is_empty() {
+                return Some(val.to_string());
+            }
+        }
+    }
+
+    None
 }
 
 /// Simple parser for key = "value" in TOML lines
@@ -265,5 +396,26 @@ authors = ["Alice <alice@example.com>"]
         let meta = ProjectMetadata::extract(dir.path(), Language::Go);
         assert_eq!(meta.name.as_deref(), Some("hello-world"));
         assert_eq!(meta.repository.as_deref(), Some("https://github.com/octocat/hello-world"));
+    }
+
+    #[test]
+    fn test_extract_maven_pom_metadata() {
+        let dir = tempdir().unwrap();
+        let pom_xml = r#"<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>hello-java</artifactId>
+  <version>1.0.0</version>
+  <name>hello-java</name>
+  <description>A test Java CLI tool</description>
+  <url>https://github.com/myorg/hello-java</url>
+</project>"#;
+        fs::write(dir.path().join("pom.xml"), pom_xml).unwrap();
+
+        let meta = ProjectMetadata::extract(dir.path(), Language::Java);
+        assert_eq!(meta.name.as_deref(), Some("hello-java"));
+        assert_eq!(meta.version.as_deref(), Some("1.0.0"));
+        assert_eq!(meta.description.as_deref(), Some("A test Java CLI tool"));
+        assert_eq!(meta.homepage.as_deref(), Some("https://github.com/myorg/hello-java"));
     }
 }

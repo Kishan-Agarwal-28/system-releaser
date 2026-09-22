@@ -29,23 +29,47 @@ The detector looks for specific "marker files" in your project root to determine
 - **C/C++**: `CMakeLists.txt`, `Makefile`
 - *(See the full [Languages Matrix](/docs/languages) for all 23 languages)*
 
-## Monorepo Detection
+## Monorepo & Workspace-Aware Detection
 
-If `system-releaser` detects multiple markers (e.g., a `package.json` and a `Cargo.toml`), it will identify the project as a **Monorepo**. By default, it will ask you which sub-project to focus on, or you can specify it via `releaser.yaml`.
+`system-releaser` is monorepo-aware:
+
+- **Nested Package Scanning**: When you run `releaser detect` inside a subdirectory (such as `packages/cli`, `crates/core`, or `apps/web`), the detector inspects the local directory for package-level manifests and also searches ancestor directories for enclosing workspace definitions.
+- **Recognized Workspaces**:
+  - Cargo workspaces (`Cargo.toml` with `[workspace]`)
+  - pnpm workspaces (`pnpm-workspace.yaml`)
+  - npm, Yarn, and Bun workspaces (`package.json` with `"workspaces"`)
+  - Go workspaces (`go.work`)
+  - Turborepo (`turbo.json`), Nx (`nx.json`), and Lerna (`lerna.json`)
+  - Gradle multi-projects (`settings.gradle` / `settings.gradle.kts`)
+- **Reporting**: When an enclosing workspace is found, `releaser detect` outputs `Workspace Root: <path>` and notes it in the evidence list.
+
+### Releasing in a Monorepo
+
+- **Whole Workspace Release**: Run `releaser init` and `releaser release` from the workspace root to orchestrate a unified release.
+- **Individual Package Release**: Run `releaser init` and `releaser release` directly inside the package directory (e.g. `packages/cli`). The release will package and distribute just that component while recognizing its workspace context.
 
 ## Example Output
 
 ```text
 $ releaser detect
-[INFO] Scanning project directory: .
-[SUCCESS] Detected language: Rust
-[SUCCESS] Build system: Cargo
-[INFO] Version detected: 1.2.0
+Target: packages/cli
+Detected Language: Rust
+Confidence: High
+Build/Package Tool: cargo
+Workspace Root: /workspace/my-monorepo
+  (Notice: Detected package inside a monorepo workspace. Run 'system-releaser detect' at root or configure this sub-package directly.)
+
+Manifests found:
+  - Cargo.toml
+
+Evidence:
+  * Detected enclosing workspace root at '/workspace/my-monorepo' (Cargo workspace ([workspace]))
+  * Found Cargo manifest (Cargo.toml)
 ```
 
 ## What if detection is wrong?
 
-If `system-releaser` incorrectly identifies your project or if you're using a custom build script, you can override the detection by explicitly defining the language and build commands in your `releaser.yaml` via the `releaser init` command.
+If `system-releaser` incorrectly identifies your project or if you are using a custom build script, you can override the detection by explicitly defining the language and build commands in your `releaser.yaml` via the `releaser init` command.
 
 <Callout type="info">
   You can always run `releaser detect --verbose` to see exactly which files were scanned and matched.

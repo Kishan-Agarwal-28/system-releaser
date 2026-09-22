@@ -285,15 +285,11 @@ impl<'de> Deserialize<'de> for ReadmeConfig {
             }),
             serde_yml::Value::Mapping(map) => {
                 let mut cfg = ReadmeConfig::default();
-                if let Some(val) = map.get("update") {
-                    if let serde_yml::Value::Bool(b) = val {
-                        cfg.update = *b;
-                    }
+                if let Some(serde_yml::Value::Bool(b)) = map.get("update") {
+                    cfg.update = *b;
                 }
-                if let Some(val) = map.get("file") {
-                    if let serde_yml::Value::String(s) = val {
-                        cfg.file = s.clone();
-                    }
+                if let Some(serde_yml::Value::String(s)) = map.get("file") {
+                    cfg.file = s.clone();
                 }
                 Ok(cfg)
             }
