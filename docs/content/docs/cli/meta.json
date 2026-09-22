@@ -1,0 +1,12 @@
+{
+  "title": "CLI Commands",
+  "pages": [
+    "index",
+    "detect",
+    "init",
+    "check",
+    "test",
+    "release",
+    "init-ci"
+  ]
+}

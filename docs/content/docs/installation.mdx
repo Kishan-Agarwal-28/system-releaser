@@ -1,0 +1,127 @@
+---
+title: Installation
+description: How to install system-releaser on your machine.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
+system-releaser is a single binary with no external dependencies (unless building from source). You can install it using our universal installation script, via package managers, or by building from source.
+
+## System Requirements
+
+- **OS**: Linux, macOS, or Windows
+- **Architecture**: x86_64 or ARM64
+- **Memory**: Minimum 512MB RAM
+- **Disk Space**: ~20MB for the binary
+
+## Installation Methods
+
+<Tabs items={['Linux/macOS', 'Windows (PowerShell)', 'Cargo', 'Nix', 'Homebrew']}>
+  <Tab value="Linux/macOS">
+    The easiest way to install system-releaser on Unix-like systems is using our shell installer.
+    
+    ```bash
+    curl -fsSL https://system-releaser.dev/install.sh | bash
+    ```
+    
+    This will download the latest binary for your OS and architecture and place it in `/usr/local/bin` (or `~/.local/bin` depending on permissions).
+  </Tab>
+  <Tab value="Windows (PowerShell)">
+    For Windows users, we provide a PowerShell installation script.
+    
+    ```powershell
+    irm https://system-releaser.dev/install.ps1 | iex
+    ```
+    
+    This places the `releaser.exe` binary in your `$HOME\.local\bin` directory and updates your user PATH.
+  </Tab>
+  <Tab value="Cargo">
+    If you are a Rust developer, you can install system-releaser directly from crates.io using Cargo.
+    
+    ```bash
+    cargo install system-releaser
+    ```
+    
+    <Callout type="warn">
+      Building from source requires **Rust 1.74.0 or higher**. Ensure your toolchain is up to date with `rustup update`.
+    </Callout>
+  </Tab>
+  <Tab value="Nix">
+    If you use Nix, you can install system-releaser from nixpkgs.
+    
+    ```bash
+    nix-env -iA nixpkgs.system-releaser
+    ```
+    
+    Or use it in a `nix shell`:
+    
+    ```bash
+    nix shell nixpkgs#system-releaser
+    ```
+  </Tab>
+  <Tab value="Homebrew">
+    For macOS and Linux users who prefer Homebrew, we maintain a tap.
+    
+    ```bash
+    brew install system-releaser/tap/releaser
+    ```
+  </Tab>
+</Tabs>
+
+## Verify Installation
+
+Once installed, verify that the CLI is available and working correctly:
+
+```bash
+releaser --version
+```
+
+**Expected output:**
+```
+system-releaser v1.0.0
+```
+
+## Upgrading
+
+To upgrade to the latest version, simply re-run the installation command you originally used. The installer scripts will automatically detect the existing installation and replace it with the new version.
+
+```bash
+releaser update
+```
+
+<Callout type="info">
+The `update` command is a convenient wrapper that upgrades system-releaser in-place.
+</Callout>
+
+## Troubleshooting
+
+<Steps>
+<Step>
+### Command not found
+If you see `releaser: command not found` after using the installation script, the installation directory is likely not in your system's PATH.
+
+**Fix:** Add the installation directory to your PATH.
+- On Linux/macOS: Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc` or `~/.zshrc`.
+- On Windows: Ensure `%USERPROFILE%\.local\bin` is in your environment variables.
+</Step>
+<Step>
+### Permission denied
+If you encounter permission errors during installation on Unix systems.
+
+**Fix:** You may need to run the installer with `sudo` or change the target directory to one you own.
+```bash
+curl -fsSL https://system-releaser.dev/install.sh | sudo bash
+```
+</Step>
+<Step>
+### Old Rust version
+When building with Cargo, you might get compilation errors about missing features.
+
+**Fix:** Upgrade Rust to the required minimum version (1.74.0+).
+```bash
+rustup update stable
+```
+</Step>
+</Steps>

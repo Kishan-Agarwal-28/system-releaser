@@ -1,0 +1,68 @@
+---
+title: macOS Package Managers
+description: Homebrew formulae and MacPorts Portfile generation.
+---
+
+`system-releaser` generates packaging manifests for both Homebrew and MacPorts.
+
+---
+
+## 1. Homebrew Formula
+
+Generates a Homebrew Formula ready for custom taps (`homebrew-tap/Formula/<name>.rb`):
+
+- **File**: `dist/<app>.rb`
+- **Architectures**:
+  - macOS Apple Silicon (`arm64`)
+  - macOS Intel (`amd64`)
+  - Linux AMD64 and Linux ARM64
+- **Security**: Double quotes, backslashes, and Ruby string interpolation (`#{...}`) in `description` and `homepage` are escaped.
+
+### Example Generated Formula
+
+```ruby
+class MyTool < Formula
+  desc "A powerful developer CLI"
+  homepage "https://my-tool.dev"
+  version "1.0.0"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/my-org/my-tool/releases/download/v1.0.0/my-tool_1.0.0_darwin_arm64.tar.gz"
+      sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    else
+      url "https://github.com/my-org/my-tool/releases/download/v1.0.0/my-tool_1.0.0_darwin_amd64.tar.gz"
+      sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/my-org/my-tool/releases/download/v1.0.0/my-tool_1.0.0_linux_arm64.tar.gz"
+      sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    else
+      url "https://github.com/my-org/my-tool/releases/download/v1.0.0/my-tool_1.0.0_linux_amd64.tar.gz"
+      sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    end
+  end
+
+  def install
+    bin.install "my-tool"
+  end
+
+  test do
+    system "#{bin}/my-tool", "--version"
+  end
+end
+```
+
+---
+
+## 2. MacPorts
+
+Generates a Portfile using TCL syntax:
+
+- **File**: `dist/Portfile`
+- **Architectures**: Apple Silicon (`arm64`) and Intel (`x86_64`).
+- **Integrity**: Computes and places authentic SHA-256 hashes.
+- **Escaping**: TCL braces (`{`, `}`) in descriptions are escaped to prevent syntax breakage.

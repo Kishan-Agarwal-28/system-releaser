@@ -1,0 +1,65 @@
+---
+title: Windows Package Managers
+description: WinGet, Chocolatey, and Scoop manifest generation.
+---
+
+`system-releaser` provides full coverage for the primary Windows package management ecosystems.
+
+---
+
+## 1. WinGet (Windows Package Manager)
+
+Generates a modern singleton manifest complying with the `1.6.0` schema:
+
+- **File**: `dist/<app>.yaml`
+- **Architectures**: Both `x64` and `arm64`.
+- **Installer Type**: `zip` containing portable nested executable.
+
+```yaml
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
+PackageIdentifier: MyOrg.my-tool
+PackageVersion: 1.0.0
+PackageName: my-tool
+Publisher: MyOrg
+License: MIT
+ShortDescription: "Fast CLI tool"
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/my-org/my-tool/releases/download/v1.0.0/my-tool_1.0.0_windows_amd64.zip
+    InstallerSha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: my-tool.exe
+        PortableCommandAlias: my-tool
+  - Architecture: arm64
+    InstallerType: zip
+    InstallerUrl: https://github.com/my-org/my-tool/releases/download/v1.0.0/my-tool_1.0.0_windows_arm64.zip
+    InstallerSha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: my-tool.exe
+        PortableCommandAlias: my-tool
+ManifestType: singleton
+ManifestVersion: 1.6.0
+```
+
+---
+
+## 2. Chocolatey
+
+Generates a `.nuspec` package manifest and PowerShell installation helper:
+
+- **Files**: `dist/<app>.nuspec` and `dist/chocolateyInstall.ps1`
+- **Features**: XML-escaped description, author, and homepage tags.
+- **Multi-Architecture**: `chocolateyInstall.ps1` includes dedicated checksums and download URLs for both 64-bit AMD64 and ARM64 Windows.
+
+---
+
+## 3. Scoop
+
+Generates a Scoop manifest configured with autoupdate blocks:
+
+- **File**: `dist/<app>.json`
+- **Architecture**: Separate `64bit` and `arm64` keys with SHA-256 hashes.
+- **Autoupdate**: Automatically connects to GitHub release tag patterns.

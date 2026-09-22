@@ -1,0 +1,48 @@
+---
+title: Supported Languages
+description: Support matrix for the 23 automatically detected programming languages.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Supported Languages
+
+`system-releaser` automatically detects, tests, and builds software written in 23 different programming languages. 
+
+## Language Support Matrix
+
+| Language | Detection File(s) | Default Build Tool | Build Command | Test Command |
+|----------|-------------------|--------------------|---------------|--------------|
+| **Rust** | `Cargo.toml` | Cargo | `cargo build --release` | `cargo test` |
+| **Go** | `go.mod` | Go | `go build` | `go test ./...` |
+| **Node.js** | `package.json` | npm / yarn | `npm run build` | `npm test` |
+| **TypeScript** | `tsconfig.json` | tsc | `tsc` | `npm test` |
+| **Python** | `pyproject.toml` | Python / pip | `python -m build` | `pytest` |
+| **Ruby** | `Gemfile` | Bundler | `gem build` | `rake test` |
+| **Java** | `pom.xml` | Maven | `mvn package` | `mvn test` |
+| **Kotlin** | `build.gradle.kts` | Gradle | `gradle build` | `gradle test` |
+| **Scala** | `build.sbt` | sbt | `sbt compile` | `sbt test` |
+| **C++** | `CMakeLists.txt` | CMake | `cmake --build .` | `ctest` |
+| **C** | `Makefile` | Make | `make` | `make test` |
+| **C#** | `*.csproj` | dotnet | `dotnet build -c Release` | `dotnet test` |
+| **F#** | `*.fsproj` | dotnet | `dotnet build -c Release` | `dotnet test` |
+| **Swift** | `Package.swift` | Swift PM | `swift build -c release`| `swift test` |
+| **PHP** | `composer.json` | Composer | `composer install` | `phpunit` |
+| **Perl** | `Makefile.PL` | Make | `make` | `make test` |
+| **R** | `DESCRIPTION` | R CMD | `R CMD build` | `R CMD check` |
+| **Julia** | `Project.toml` | Pkg | `julia -e 'using Pkg; Pkg.build()'`| `julia -e 'using Pkg; Pkg.test()'` |
+| **Dart** | `pubspec.yaml` | Dart | `dart compile exe` | `dart test` |
+| **Elixir** | `mix.exs` | Mix | `mix compile` | `mix test` |
+| **Erlang** | `rebar.config` | Rebar3 | `rebar3 compile` | `rebar3 eunit` |
+| **Haskell** | `package.yaml` | Stack | `stack build` | `stack test` |
+| **Zig** | `build.zig` | Zig | `zig build -Doptimize=ReleaseSafe`| `zig build test` |
+
+## Cross-Compilation
+
+Native cross-compilation is fully supported for languages that emit standalone binaries (like Rust, Go, C/C++, and Zig). `system-releaser` will automatically configure the appropriate target triples and environment variables (e.g., `GOOS`/`GOARCH` for Go) based on your `releaser.yaml` config.
+
+For interpreted or bytecode languages (like Python, Node.js, Java), `system-releaser` focuses on packaging the source or bytecode into universal archives and generating runtime wrappers.
+
+<Callout type="info">
+  **Want to add a new language?**
+  Language definitions are modular! You can submit a PR to the `system-releaser` repository to add detection and build definitions for new toolchains.
+</Callout>

@@ -1,0 +1,8 @@
+{
+  "title": "Examples & Tutorials",
+  "pages": [
+    "rust-cli",
+    "go-monorepo",
+    "python-cli"
+  ]
+}

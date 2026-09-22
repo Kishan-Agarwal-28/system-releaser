@@ -1,0 +1,101 @@
+---
+title: AI Prompts
+description: Copy-pasteable prompts for configuring and debugging system-releaser
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+Use these prompts with your favorite AI assistant to quickly configure or debug system-releaser.
+
+<Callout title="Best Practice" type="info">
+For best results, provide the AI with your project's `releaser.yaml` (if it exists) and any relevant error output when asking questions.
+</Callout>
+
+## Set up system-releaser for my project
+
+Use this prompt to get started with system-releaser from scratch.
+
+```text
+I want to set up system-releaser for my project. system-releaser is a CLI tool that automates releases across platforms. It:
+- Auto-detects 23 languages (Rust, Go, Python, Node.js, C/C++, Java, Kotlin, Swift, Zig, etc.)
+- Builds cross-platform binaries (Linux, macOS, Windows × x86_64/ARM64)
+- Generates manifests for 14 package managers (Homebrew, APT, Pacman, Nix, WinGet, Chocolatey, Scoop, RPM, APK, MacPorts, Snap, Flatpak, pkg, Portage)
+- Creates universal install scripts (shell + PowerShell)
+- Publishes to GitHub Releases with SHA256 checksums
+
+Please:
+1. Run `releaser detect` to identify my project
+2. Run `releaser init` to generate a releaser.yaml
+3. Customize the releaser.yaml for my needs
+4. Run `releaser check` to validate
+5. Set up CI/CD with `releaser init-ci`
+```
+
+## Debug my release pipeline
+
+If your release is failing, this prompt helps the AI understand the pipeline and diagnose the issue.
+
+```text
+I'm using system-releaser and my release is failing. system-releaser uses a releaser.yaml config file. The CLI commands are:
+- `releaser detect`: detect language/build system
+- `releaser check`: validate config and environment
+- `releaser test`: run test suite
+- `releaser release`: full release (build, package, publish)
+
+The release pipeline: load config → detect language → resolve version → run tests → build targets → create archives → generate checksums → generate package manifests → generate install scripts → upload to GitHub.
+
+Please help me debug why my release is failing. Here's my releaser.yaml and the error output:
+[paste your config and error here]
+```
+
+## Configure package managers
+
+Need to distribute your app via Homebrew, APT, or WinGet? Use this prompt.
+
+```text
+I'm using system-releaser and want to configure package manager manifests. system-releaser supports 14 package managers:
+
+Linux: APT (.deb), Pacman (PKGBUILD), RPM (.spec), APK (APKBUILD), Snap, Flatpak, Portage (ebuild)
+macOS: Homebrew (formula), MacPorts (Portfile)
+Windows: WinGet (YAML), Chocolatey (.nuspec), Scoop (JSON)
+Universal: Nix (derivation), pkg (FreeBSD)
+
+Each is configured in releaser.yaml under `package_managers:`. Please help me configure the ones I need for my project.
+```
+
+## Write a releaser.yaml from scratch
+
+Use this when you want to bypass the `init` command and have the AI generate a configuration directly.
+
+```text
+Please write a `releaser.yaml` configuration file for my project. system-releaser is a CLI tool that automates releases.
+
+Here are the key configurations I need:
+- Project name: [Your Project Name]
+- Description: [Brief Description]
+- Executable name: [Executable Name]
+- Languages/Frameworks: [e.g., Rust, Node.js]
+- Target OS: [Linux, macOS, Windows]
+- Target Arch: [x86_64, aarch64]
+- Package Managers to support: [e.g., Homebrew, APT, Scoop]
+- Do I want to publish to GitHub Releases? [Yes/No]
+
+Ensure the configuration is valid according to the system-releaser specification.
+```
+
+## Understand the system-releaser context
+
+When starting a new chat session, you can use this prompt to prime the AI with full knowledge of system-releaser.
+
+<Tabs items={['ChatGPT / Claude', 'Cursor', 'GitHub Copilot']}>
+  <Tab value="ChatGPT / Claude">
+    Copy the contents of `https://system-releaser.com/llms-full.txt` (or your local equivalent) and paste it into the chat as the first message, followed by your question.
+  </Tab>
+  <Tab value="Cursor">
+    Type `@https://system-releaser.com/llms-full.txt` in the chat to add the documentation as context, then ask your question.
+  </Tab>
+  <Tab value="GitHub Copilot">
+    Add the `https://system-releaser.com/llms-full.txt` URL or a downloaded file as a reference to your chat, depending on your IDE integration.
+  </Tab>
+</Tabs>

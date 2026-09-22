@@ -1,0 +1,20 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "installation",
+    "quick-start",
+    "---Reference---",
+    "cli",
+    "configuration",
+    "languages",
+    "package-managers",
+    "installers",
+    "---Advanced---",
+    "ci-cd",
+    "security",
+    "examples",
+    "---AI & Agents---",
+    "ai-skills"
+  ]
+}

@@ -1,0 +1,103 @@
+---
+title: Go Monorepo Example
+description: Releasing multiple Go binaries from a monorepo setup.
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+This tutorial demonstrates how to use system-releaser in a Go monorepo containing multiple CLI tools.
+
+<Steps>
+
+<Step>
+### Project Structure
+
+Imagine a Go monorepo with the following structure:
+
+```text
+my-go-tools/
+├── go.mod
+├── cmd/
+│   ├── tool-a/
+│   │   └── main.go
+│   └── tool-b/
+│       └── main.go
+└── pkg/
+    └── common/
+        └── utils.go
+```
+</Step>
+
+<Step>
+### Configure system-releaser
+
+Run `releaser init` in the root of your project:
+
+```bash
+releaser init
+```
+
+Since it's a monorepo, we'll need to customize the `releaser.yaml` to handle multiple binaries. system-releaser supports building multiple commands by specifying custom build hooks or utilizing workspace features if applicable. 
+
+For a custom multi-binary release:
+
+```yaml
+name: my-go-tools
+version: 1.0.0
+description: A collection of helpful Go tools
+repository: my-org/my-go-tools
+
+build:
+  # Using custom build command to build all tools in cmd/
+  command: go
+  args: ["build", "-trimpath", "-ldflags", "-s -w", "./cmd/..."]
+  
+targets:
+  - os: linux
+    arch: amd64
+  - os: darwin
+    arch: amd64
+  - os: darwin
+    arch: arm64
+  - os: windows
+    arch: amd64
+
+github:
+  owner: my-org
+  repo: my-go-tools
+```
+
+<Callout type="info">
+By passing `./cmd/...` to the Go build command, Go will compile all binaries in the `cmd` directory, and system-releaser will collect and package them together!
+</Callout>
+</Step>
+
+<Step>
+### Execute the Release
+
+Run the release pipeline:
+
+```bash
+export GITHUB_TOKEN=your_token
+releaser release
+```
+
+**Terminal Output:**
+```
+🚀 Starting release pipeline for my-go-tools v1.0.0
+📦 Building targets using go...
+  - linux-amd64
+  - darwin-amd64
+  - darwin-arm64
+  - windows-amd64
+✅ Builds complete
+
+📜 Generating install_sh script...
+✅ Packaging complete
+
+📤 Uploading artifacts to GitHub Releases...
+✅ Successfully published release v1.0.0!
+```
+</Step>
+</Steps>

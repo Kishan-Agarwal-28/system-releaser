@@ -1,0 +1,48 @@
+---
+title: AI & LLM Integration
+description: Leverage AI coding assistants and Agent Skills with system-releaser
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+system-releaser provides first-class support for AI coding assistants and autonomous agents (Claude Code, Cursor, Windsurf, GitHub Copilot, Antigravity).
+
+You can give your agents full awareness of system-releaser using the **skills.sh** package manager, direct prompt templates, or machine-readable context endpoints.
+
+---
+
+## 1. Install via skills.sh
+
+The fastest way to equip your AI agent with release automation capabilities is using [skills.sh](https://skills.sh):
+
+```bash
+# Install the system-releaser skill into your project
+npx skills add user/system-releaser
+```
+
+This automatically downloads the official `SKILL.md` specification and registers it with your local coding assistant (Cursor, Claude Code, Windsurf, or Copilot).
+
+<Callout title="Skill Management" type="info">
+Run `npx skills list` to inspect installed skills or `npx skills update` to update to the latest release engineering capabilities.
+</Callout>
+
+---
+
+## 2. Machine-Readable Context Endpoints
+
+This documentation site automatically compiles two high-density text endpoints optimized for LLM ingestion:
+
+* **`/llms.txt`**: A concise architecture summary, CLI command list, and common workflows.
+* **`/llms-full.txt`**: Full documentation including the complete `releaser.yaml` configuration schema and CLI option flags.
+
+You can paste these URLs into Cursor `@Docs`, Claude Projects, or custom GPT knowledge bases.
+
+---
+
+## 3. Explore Resources
+
+<Cards>
+  <Card title="Skills" href="/docs/ai-skills/skill-file" description="Install via skills.sh CLI or embed a manual SKILL.md specification in your repo." />
+  <Card title="Prompt Library" href="/docs/ai-skills/prompts" description="Copy-pasteable prompt templates for release setup, troubleshooting, and matrix configuration." />
+</Cards>

@@ -1,0 +1,59 @@
+---
+title: releaser init-ci
+description: Generate CI/CD workflow files automatically.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# releaser init-ci
+
+The `init-ci` command bootstraps automated Continuous Integration (CI) and Continuous Deployment (CD) pipelines for your project, natively supporting GitHub Actions.
+
+## Usage
+
+```bash
+releaser init-ci
+```
+
+## The Generated Workflow
+
+Running this command creates a `.github/workflows/release.yml` file tailored to your project. By default, it sets up a matrix build for Linux, macOS, and Windows.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install system-releaser
+        run: curl -sL https://system-releaser.sh | bash
+
+      - name: Run Release Pipeline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: releaser release --verbose
+```
+
+## Customization
+
+The generated workflow is just a starting point. You can customize it to:
+- Trigger on specific branches instead of tags.
+- Add pre-release dependency caching steps.
+- Configure separate matrix jobs for heavy cross-platform builds.
+
+## Required Secrets
+
+For the GitHub Actions workflow to publish releases on your behalf, you need a valid token. By default, the action uses `${{ secrets.GITHUB_TOKEN }}` which is automatically provided by GitHub.
+
+<Callout type="warn">
+  Ensure that your repository settings allow the `GITHUB_TOKEN` to have **Read and write permissions** for workflows. Go to `Settings -> Actions -> General -> Workflow permissions` to verify.
+</Callout>

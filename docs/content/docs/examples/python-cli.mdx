@@ -1,0 +1,115 @@
+---
+title: Python CLI Example
+description: Distribute a Python CLI as a standalone binary using PyInstaller and system-releaser.
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Distributing Python CLIs can be challenging due to environment dependencies. system-releaser can help you package Python applications into standalone executables (using PyInstaller or similar tools) and distribute them easily.
+
+<Steps>
+
+<Step>
+### Setup a Python CLI
+
+Create a new directory and set up a basic `pyproject.toml` and CLI script.
+
+```bash
+mkdir my-py-cli
+cd my-py-cli
+```
+
+**`pyproject.toml`:**
+```toml
+[project]
+name = "my-py-cli"
+version = "0.1.0"
+description = "A Python CLI packaged as a binary"
+dependencies = [
+    "click"
+]
+
+[project.scripts]
+my-py-cli = "my_py_cli.cli:main"
+```
+
+**`my_py_cli/cli.py`:**
+```python
+import click
+
+@click.command()
+@click.option('--name', default='World', help='Who to greet.')
+def main(name):
+    click.echo(f'Hello {name} from Python!')
+
+if __name__ == '__main__':
+    main()
+```
+</Step>
+
+<Step>
+### Initialize system-releaser
+
+Run the initialization command:
+
+```bash
+releaser init
+```
+
+By default, system-releaser detects Python and sets up PyInstaller as the default packaging mechanism.
+
+**`releaser.yaml`:**
+```yaml
+name: my-py-cli
+version: 0.1.0
+description: A Python CLI packaged as a binary
+repository: my-org/my-py-cli
+
+build:
+  command: pyinstaller
+  args: ["--onefile", "--name", "my-py-cli", "my_py_cli/cli.py"]
+  binary_name: my-py-cli
+  binary_path: dist/my-py-cli
+
+targets:
+  - os: linux
+    arch: amd64
+  - os: darwin
+    arch: arm64
+  - os: windows
+    arch: amd64
+
+github:
+  owner: my-org
+  repo: my-py-cli
+```
+
+<Callout type="warn">
+Cross-compiling Python binaries across different operating systems requires specific setup with PyInstaller, or utilizing CI/CD pipelines to build on native runners.
+</Callout>
+</Step>
+
+<Step>
+### Run the Release
+
+Assuming you are running on a native runner or have cross-compilation configured:
+
+```bash
+releaser release
+```
+
+**Terminal Output:**
+```
+🚀 Starting release pipeline for my-py-cli v0.1.0
+📦 Building targets using pyinstaller...
+✅ Builds complete
+
+📜 Generating install_sh script...
+✅ Packaging complete
+
+📤 Uploading artifacts to GitHub Releases...
+✅ Successfully published release v0.1.0!
+```
+</Step>
+</Steps>

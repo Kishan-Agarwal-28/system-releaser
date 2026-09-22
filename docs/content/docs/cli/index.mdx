@@ -1,0 +1,65 @@
+---
+title: CLI Reference
+description: Overview of the system-releaser command-line interface.
+---
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
+# CLI Reference
+
+`system-releaser` is a comprehensive Rust-based CLI tool designed to automate the entire release pipeline across 23 programming languages.
+
+## Global Options
+
+The following global options apply to all commands:
+
+- `--project-dir <DIR>`: Specify the project directory (default: `.`)
+- `--verbose`, `-v`: Enable verbose output for debugging
+- `--help`, `-h`: Display help information for any command
+- `--version`, `-V`: Display the current CLI version
+
+## Typical Workflow
+
+The standard release workflow follows a linear pipeline:
+
+<Steps>
+  <Step>
+    **Detect**: Run `releaser detect` to identify your language and build system.
+  </Step>
+  <Step>
+    **Initialize**: Run `releaser init` to generate a `releaser.yaml` configuration file.
+  </Step>
+  <Step>
+    **Validate**: Run `releaser check` to ensure your environment is ready.
+  </Step>
+  <Step>
+    **Test**: Run `releaser test` to execute your test suites.
+  </Step>
+  <Step>
+    **Release**: Run `releaser release` to build, package, and publish.
+  </Step>
+</Steps>
+
+## Command Quick Reference
+
+<Cards>
+  <Card title="releaser release" href="/docs/cli/release">
+    Full release pipeline (build, package, publish)
+  </Card>
+  <Card title="releaser detect" href="/docs/cli/detect">
+    Detect language/build system automatically
+  </Card>
+  <Card title="releaser init" href="/docs/cli/init">
+    Initialize releaser.yaml config
+  </Card>
+  <Card title="releaser check" href="/docs/cli/check">
+    Validate config and environment
+  </Card>
+  <Card title="releaser test" href="/docs/cli/test">
+    Run project test suite
+  </Card>
+  <Card title="releaser init-ci" href="/docs/cli/init-ci">
+    Generate CI/CD workflows
+  </Card>
+</Cards>

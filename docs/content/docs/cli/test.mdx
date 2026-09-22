@@ -1,0 +1,49 @@
+---
+title: releaser test
+description: Run your project's test suite safely and efficiently.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# releaser test
+
+The `test` command abstracts away language-specific testing frameworks, providing a unified way to run tests across any of the 23 supported languages. It is automatically executed during `releaser release` (unless `--skip-tests` is provided).
+
+## Usage
+
+```bash
+releaser test
+```
+
+## Language to Test Command Mapping
+
+`system-releaser` automatically maps your detected language to the industry-standard test command:
+
+| Language | Framework / Tool | Default Test Command |
+|----------|------------------|----------------------|
+| Rust | Cargo | `cargo test` |
+| Go | Go Modules | `go test ./...` |
+| Node.js | npm | `npm test` |
+| Python | Pytest / Unittest | `pytest` or `python -m unittest` |
+| Ruby | Rake / RSpec | `rake test` or `rspec` |
+| Java | Maven / Gradle | `mvn test` or `gradle test` |
+| C/C++ | Make / CMake | `make test` or `ctest` |
+
+*(Custom test commands can be configured in `releaser.yaml` under `build.test_command`)*
+
+## Example Output
+
+```text
+$ releaser test
+[INFO] Running tests for Rust project...
+   Compiling my-project v1.0.0
+    Finished test [unoptimized + debuginfo] target(s) in 2.34s
+     Running unittests src/main.rs
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+[SUCCESS] All tests passed!
+```
+
+<Callout type="info">
+  If your tests require specific environment variables (like a test database URL), ensure they are set in your shell before running `releaser test`.
+</Callout>

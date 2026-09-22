@@ -1,0 +1,192 @@
+---
+title: Project Configuration
+description: Complete reference for the releaser.yaml configuration file.
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+The `releaser.yaml` file is the heart of system-releaser. It defines how your project should be built, packaged, and published. While `releaser init` generates a sensible default, you can customize every aspect of the pipeline.
+
+## Full Schema Reference
+
+Below is the complete, annotated schema for `releaser.yaml`:
+
+```yaml
+# Full schema
+name: string              # Project name (auto-detected if omitted)
+version: string           # Version (auto-detected from manifest/git tags)
+description: string       # Project description
+homepage: string          # Project homepage URL
+license: string           # SPDX license identifier
+repository: string        # Repository URL (owner/repo format)
+
+build:
+  command: string         # Custom build command
+  args: [string]          # Additional build arguments
+  env: {key: value}       # Environment variables
+  pre_build: [string]     # Commands to run before build
+  post_build: [string]    # Commands to run after build
+  binary_name: string     # Output binary name
+  binary_path: string     # Path to built binary
+  features: [string]      # Language-specific features (e.g., Cargo features)
+  strip: bool             # Strip debug symbols (default: false)
+  upx: bool               # Compress with UPX (default: false)
+
+targets:                  # Build targets
+  - os: linux|darwin|windows
+    arch: amd64|arm64
+    features: [string]
+    env: {key: value}
+
+install_scripts:
+  enabled: bool
+  shell:
+    install_dir: string   # Default: /usr/local/bin
+    extra_commands: [string]
+  powershell:
+    install_dir: string   # Default: $HOME/.local/bin
+    extra_commands: [string]
+
+package_managers:
+  homebrew: {enabled: bool, tap: string, ...}
+  apt: {enabled: bool, ...}
+  pacman: {enabled: bool, ...}
+  nix: {enabled: bool, ...}
+  winget: {enabled: bool, ...}
+  chocolatey: {enabled: bool, ...}
+  scoop: {enabled: bool, bucket: string, ...}
+  rpm: {enabled: bool, ...}
+  apk: {enabled: bool, ...}
+  macports: {enabled: bool, ...}
+  snap: {enabled: bool, ...}
+  flatpak: {enabled: bool, ...}
+  pkg: {enabled: bool, ...}
+  portage: {enabled: bool, ...}
+
+github:
+  owner: string           # GitHub owner/org
+  repo: string            # Repository name
+  draft: bool             # Create as draft release
+  prerelease: bool        # Mark as pre-release
+  release_notes: string   # Release notes content/path
+  discussion_category: string
+
+hooks:
+  pre_release: [string]   # Commands before release
+  post_release: [string]  # Commands after release
+  pre_build: [string]     # Commands before each build
+  post_build: [string]    # Commands after each build
+```
+
+<Callout type="info">
+Almost all fields are optional. system-releaser relies heavily on convention over configuration and will try to auto-detect missing values.
+</Callout>
+
+## Examples
+
+<Accordions>
+<Accordion title="1. Minimal Config">
+The bare minimum configuration. system-releaser will detect the language, version, and build targets automatically.
+
+```yaml
+name: my-cli
+repository: username/my-cli
+```
+</Accordion>
+
+<Accordion title="2. Standard Config">
+A typical configuration for a mature project, specifying targets and enabling popular package managers.
+
+```yaml
+name: my-cli
+version: 1.2.0
+description: A fast and simple CLI tool
+repository: username/my-cli
+
+build:
+  binary_name: my-cli
+  strip: true
+
+targets:
+  - os: linux
+    arch: amd64
+  - os: darwin
+    arch: amd64
+  - os: darwin
+    arch: arm64
+  - os: windows
+    arch: amd64
+
+package_managers:
+  homebrew:
+    enabled: true
+    tap: username/homebrew-tap
+  scoop:
+    enabled: true
+    bucket: username/scoop-bucket
+
+github:
+  owner: username
+  repo: my-cli
+```
+</Accordion>
+
+<Accordion title="3. Full-Featured Config">
+An advanced configuration utilizing custom build commands, hooks, UPX compression, and multiple package managers.
+
+```yaml
+name: enterprise-cli
+version: 2.0.0
+description: Enterprise-grade command line interface
+homepage: https://example.com
+license: MIT
+repository: enterprise/enterprise-cli
+
+build:
+  pre_build:
+    - make generate-assets
+  binary_name: ent-cli
+  strip: true
+  upx: true
+
+targets:
+  - os: linux
+    arch: amd64
+  - os: linux
+    arch: arm64
+  - os: darwin
+    arch: amd64
+  - os: darwin
+    arch: arm64
+  - os: windows
+    arch: amd64
+
+install_scripts:
+  enabled: true
+  shell:
+    install_dir: /opt/ent-cli/bin
+
+package_managers:
+  homebrew:
+    enabled: true
+    tap: enterprise/homebrew-tap
+  apt:
+    enabled: true
+  winget:
+    enabled: true
+  snap:
+    enabled: true
+
+github:
+  owner: enterprise
+  repo: enterprise-cli
+  draft: true
+  discussion_category: Announcements
+
+hooks:
+  post_release:
+    - curl -X POST -d "Release published!" https://hooks.slack.com/services/T000/B000/XXX
+```
+</Accordion>
+</Accordions>

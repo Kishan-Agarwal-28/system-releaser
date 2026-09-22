@@ -1,0 +1,38 @@
+---
+title: Package Managers Overview
+description: Overview of all 14 supported package managers and manifest outputs.
+---
+
+`system-releaser` generates syntax-validated and security-escaped package manager manifests.
+
+---
+
+## Supported Package Managers
+
+| Package Manager | Target OS | Manifest Output | Architectures |
+|---|---|---|---|
+| **WinGet** | Windows | `dist/<app>.yaml` | x64, arm64 |
+| **Chocolatey** | Windows | `dist/<app>.nuspec` + `.ps1` | x64, arm64 |
+| **Scoop** | Windows | `dist/<app>.json` | x64, arm64 |
+| **Homebrew** | macOS, Linux | `dist/<app>.rb` | macOS (arm64, x64), Linux (x64, arm64) |
+| **MacPorts** | macOS | `dist/Portfile` | x64, arm64 |
+| **Pacman / AUR** | Linux (Arch) | `dist/PKGBUILD` | x86_64, aarch64 |
+| **Snapcraft** | Linux | `dist/snapcraft.yaml` | Multi-arch |
+| **APT (.deb)** | Linux (Debian/Ubuntu) | `dist/control` + `.sh` | amd64, arm64 |
+| **RPM** | Linux (Fedora/RHEL) | `dist/<app>.spec` | x86_64, aarch64 |
+| **Alpine APK** | Linux (Alpine) | `dist/APKBUILD` | x86_64, aarch64 |
+| **Nix Flake** | Linux, macOS | `dist/flake.nix` | 4 systems |
+| **Flatpak** | Linux | `dist/flatpak.yaml` | x86_64, aarch64 |
+| **AppImage** | Linux | `dist/AppImage.yml` + `.desktop` | amd64, arm64 |
+| **asdf / mise** | Linux, macOS | `dist/asdf/` | amd64, arm64 |
+
+---
+
+## Security & Escaping
+
+All manifest generators sanitize inputs to protect against code injection:
+- **Ruby string interpolation** (`#{...}`) is escaped in Homebrew formulae.
+- **Bash subshells** (`$(...)` and backticks) are escaped in Pacman and Alpine APKBUILDs.
+- **XML entities** (`<`, `>`, `&`, `"`, `'`) are encoded in Chocolatey `.nuspec` manifests.
+- **Nix expressions** (`${...}`) are escaped in `flake.nix`.
+- **TCL braces** (`{`, `}`) are escaped in MacPorts Portfiles.

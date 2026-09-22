@@ -1,0 +1,52 @@
+---
+title: releaser check
+description: Validate your configuration and environment before releasing.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# releaser check
+
+The `check` command acts as a pre-flight validation step. It ensures that your configuration is valid, your environment has the required tools, and you have the necessary permissions to perform a release.
+
+## Usage
+
+```bash
+releaser check
+```
+
+## What Gets Checked?
+
+1. **Config Validity**: Parses `releaser.yaml` for syntax errors or missing required fields.
+2. **Tool Availability**: Checks if the required build tools (e.g., `cargo`, `npm`, `go`) are installed and in your `$PATH`.
+3. **Cross-Compilation Toolchains**: Verifies that requested target triples have the corresponding toolchains installed.
+4. **Permissions/Secrets**: Verifies that the `GITHUB_TOKEN` is present and has the necessary scopes for publishing.
+
+## Example Output
+
+### Success
+
+```text
+$ releaser check
+[✓] Config syntax valid (releaser.yaml)
+[✓] Build tool found: cargo (1.75.0)
+[✓] Cross-compilation targets valid
+[✓] GITHUB_TOKEN detected
+[SUCCESS] Environment is ready for release!
+```
+
+### Failure
+
+```text
+$ releaser check
+[✓] Config syntax valid (releaser.yaml)
+[✗] Build tool not found: cargo
+[!] Ensure Rust is installed and in your PATH.
+[✓] GITHUB_TOKEN detected
+[ERROR] Pre-flight checks failed.
+```
+
+## Common Failures
+
+- **Missing Tools**: The build tool required by your project isn't installed. Fix this by installing the standard SDK for your language.
+- **Invalid YAML**: Typo in `releaser.yaml`. Check for indentation errors.
+- **Missing Token**: `GITHUB_TOKEN` is not set in the environment. Export it using `export GITHUB_TOKEN=...`.

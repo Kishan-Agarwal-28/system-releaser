@@ -1,0 +1,75 @@
+---
+title: releaser release
+description: Full release pipeline (build, package, publish).
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# releaser release
+
+The `release` command is the core of `system-releaser`. It automates the entire process of testing, building, packaging, and publishing your software.
+
+## Usage
+
+```bash
+releaser release [OPTIONS]
+```
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--project-dir <DIR>` | Project directory (default: `.`) |
+| `--skip-tests` | Skip running the test suite before release |
+| `--skip-publish` | Skip uploading to GitHub Releases |
+| `--github-token <TOKEN>` | GitHub API token (defaults to `GITHUB_TOKEN` env var) |
+| `--version <VER>` | Override the detected release version |
+| `--output-dir <DIR>` | Directory to store built artifacts (default: `dist`) |
+| `--verbose` | Enable verbose logging |
+
+<Callout type="warn">
+  **Security Note:** Avoid passing `--github-token` directly in the CLI arguments as it may be saved in your shell history. Instead, prefer using the `GITHUB_TOKEN` environment variable.
+</Callout>
+
+## Pipeline Stages
+
+When you run `releaser release`, the following stages are executed in order:
+
+1. **Detect**: Identifies the project language and build system.
+2. **Version**: Determines the next version number.
+3. **Test**: Runs the project's native test suite (unless `--skip-tests` is passed).
+4. **Build**: Compiles optimized release binaries for target platforms (Linux, macOS, Windows).
+5. **Archive**: Compresses binaries into `.tar.gz` or `.zip`.
+6. **Checksum**: Generates SHA-256 checksums for all archives.
+7. **Manifests**: Generates package manager manifests (Homebrew, APT, Pacman, etc.).
+8. **Installers**: Creates universal install scripts (Shell, PowerShell).
+9. **Upload**: Publishes everything to GitHub Releases.
+
+## Examples
+
+<Tabs items={['Standard', 'Dry Run', 'Custom Version']}>
+  <Tab value="Standard">
+    ```bash
+    export GITHUB_TOKEN=ghp_your_secret_token
+    releaser release
+    ```
+  </Tab>
+  <Tab value="Dry Run">
+    ```bash
+    # Test the build locally without uploading
+    releaser release --skip-publish
+    ```
+  </Tab>
+  <Tab value="Custom Version">
+    ```bash
+    # Bypass auto-versioning and skip tests for a hotfix
+    releaser release --version 1.0.1-hotfix --skip-tests
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+- **401 Unauthorized during upload**: Ensure your `GITHUB_TOKEN` has the `repo` scope and is valid.
+- **Build failures**: Run with `--verbose` to see the underlying compiler output.
+- **Missing binaries**: Check if `--output-dir` is correctly specified or if the target platform cross-compilation toolchain is installed.

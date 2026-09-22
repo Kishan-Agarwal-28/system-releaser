@@ -1,0 +1,73 @@
+---
+title: GitHub Actions
+description: Setting up automated releases with GitHub Actions.
+---
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# GitHub Actions Integration
+
+`system-releaser` is built to seamlessly integrate with GitHub Actions, enabling zero-touch continuous deployment.
+
+## Complete Workflow File
+
+Below is a robust cross-platform matrix workflow that builds and releases your project for Linux, macOS, and Windows. Save this in `.github/workflows/release.yml`.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install system-releaser
+        run: curl -sL https://system-releaser.sh | bash
+        shell: bash
+
+      - name: Run system-releaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: releaser release --skip-publish=${{ matrix.os != 'ubuntu-latest' }}
+```
+
+## Step-by-Step Setup Guide
+
+<Steps>
+  <Step>
+    **Generate the Workflow**
+    Run `releaser init-ci` locally to scaffold the base GitHub Actions file, or copy the one above.
+  </Step>
+  <Step>
+    **Configure Workflow Permissions**
+    Go to your repository **Settings > Actions > General**. Under **Workflow permissions**, select **Read and write permissions**. This is required for creating GitHub Releases.
+  </Step>
+  <Step>
+    **Triggering a Release**
+    You can trigger a release by pushing a tag (e.g., `git tag v1.0.0 && git push --tags`) or manually via the **Actions** tab (thanks to `workflow_dispatch`).
+  </Step>
+</Steps>
+
+## Matrix Builds
+
+The example above utilizes a `strategy.matrix` to run native builds on Linux, macOS, and Windows concurrently. 
+To prevent race conditions where three separate jobs try to publish the GitHub Release simultaneously, the `run: releaser release` step uses logic to only allow the Ubuntu runner to handle the final publish, while the others upload artifacts to it.
+
+<Callout type="warn">
+  Ensure your `GITHUB_TOKEN` secret is correctly passed via the `env:` block, otherwise the upload step will fail with a 401 Unauthorized error.
+</Callout>

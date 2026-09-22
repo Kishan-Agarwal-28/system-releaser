@@ -1,0 +1,69 @@
+name: 'system-releaser'
+description: 'Universal language-agnostic release manager - cross-platform builds & package distribution'
+author: 'system-releaser'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  github_token:
+    description: 'GitHub token with contents:write permission for creating releases and uploading assets'
+    required: false
+    default: ''
+  github-token:
+    description: 'Alternative alias for github_token'
+    required: false
+    default: ''
+  version_bump:
+    description: 'Optional version bump type: patch, minor, major, or explicit semver string'
+    required: false
+    default: ''
+  skip_tests:
+    description: 'Skip running project tests prior to release (true/false)'
+    required: false
+    default: 'false'
+  extra_args:
+    description: 'Additional flags passed directly to system-releaser release'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Verify or install system-releaser
+      shell: bash
+      run: |
+        if ! command -v system-releaser >/dev/null 2>&1; then
+          echo "system-releaser not in PATH. Attempting automatic installation..."
+          if command -v cargo >/dev/null 2>&1; then
+            cargo install --path . || cargo install system-releaser || true
+          fi
+        fi
+
+    - name: Execute system-releaser release
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token || inputs.github-token || env.GITHUB_TOKEN }}
+        INPUT_VERSION_BUMP: ${{ inputs.version_bump }}
+        INPUT_SKIP_TESTS: ${{ inputs.skip_tests }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra_args }}
+      run: |
+        ARGS=("release")
+        if [ -n "$INPUT_VERSION_BUMP" ]; then
+          case "$INPUT_VERSION_BUMP" in
+            patch) ARGS+=("--patch") ;;
+            minor) ARGS+=("--minor") ;;
+            major) ARGS+=("--major") ;;
+            *) ARGS+=("--set-version" "$INPUT_VERSION_BUMP") ;;
+          esac
+        fi
+        if [ "$INPUT_SKIP_TESTS" = "true" ]; then
+          ARGS+=("--skip-tests")
+        fi
+        if [ -n "$INPUT_EXTRA_ARGS" ]; then
+          read -r -a EXTRA <<< "$INPUT_EXTRA_ARGS"
+          ARGS+=("${EXTRA[@]}")
+        fi
+        echo "Executing: system-releaser ${ARGS[*]}"
+        system-releaser "${ARGS[@]}"
+

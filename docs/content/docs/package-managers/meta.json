@@ -1,0 +1,10 @@
+{
+  "title": "Package Managers",
+  "pages": [
+    "index",
+    "windows",
+    "macos",
+    "linux",
+    "universal"
+  ]
+}

@@ -1,0 +1,58 @@
+---
+title: releaser init
+description: Initialize the releaser.yaml configuration file.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# releaser init
+
+The `init` command generates a default `releaser.yaml` configuration file based on the detected language and project structure.
+
+## Usage
+
+```bash
+releaser init [OPTIONS]
+```
+
+### Options
+
+- `--force`: Overwrite the existing `releaser.yaml` if it already exists.
+
+## The Generated Configuration
+
+When you run `init`, `system-releaser` runs a quick detection pass and templates out a configuration file. Here is an example of what it looks like for a Rust project:
+
+```yaml
+project:
+  name: my-awesome-cli
+  language: rust
+  version_file: Cargo.toml
+
+build:
+  command: cargo build --release
+  targets:
+    - x86_64-unknown-linux-gnu
+    - aarch64-apple-darwin
+    - x86_64-pc-windows-msvc
+
+publish:
+  github_releases: true
+  generate_installers: true
+```
+
+## Example Output
+
+```text
+$ releaser init
+[INFO] Detected Rust project.
+[SUCCESS] Created releaser.yaml
+[INFO] Review the file and run `releaser check` to validate.
+```
+
+## Existing Configurations
+
+If a `releaser.yaml` file already exists in the directory, the command will abort to prevent accidental overwrites. 
+
+<Callout type="warn">
+  To explicitly overwrite an existing configuration and reset to defaults, use the `--force` flag: `releaser init --force`
+</Callout>

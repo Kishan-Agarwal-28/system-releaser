@@ -1,0 +1,44 @@
+---
+title: Security Hardening
+description: How system-releaser handles security, secrets, and vulnerabilities.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Security Hardening
+
+`system-releaser` is designed with deep security hardening to protect your source code, deployment credentials, and local environment.
+
+## CWE Hardening Matrix
+
+We proactively mitigate common weakness enumerations (CWEs) throughout the codebase:
+
+| CWE ID | Description | Mitigation in `system-releaser` |
+|--------|-------------|---------------------------------|
+| **CWE-78** | OS Command Injection | Uses raw `Command::args()` arrays instead of shell strings, entirely bypassing shell evaluation. |
+| **CWE-22** | Path Traversal | Strict canonicalization of all archive extraction paths. Reject `../` components. |
+| **CWE-200** | Information Exposure | Secrets are masked in stdout. Verbose logs never dump environment variables. |
+| **CWE-367** | TOCTOU Race Conditions | Uses atomic file operations via `.tmp` staging files and atomic `rename`. |
+| **CWE-61** | UNIX Symbolic Link Following | Disables following symlinks during recursive directory archiving. |
+
+## Secret Handling
+
+`system-releaser` requires credentials (like `GITHUB_TOKEN`) to publish packages.
+
+- **Never via CLI Args**: Passing tokens via CLI args (e.g. `--github-token`) is actively discouraged because it leaks into `~/.bash_history`.
+- **Environment Variables**: Use `GITHUB_TOKEN=xxx releaser release`.
+- **Secure cURLing**: When fetching remote resources, `system-releaser` utilizes `curl -K` config files behind the scenes to hide HTTP headers from `ps` inspection.
+
+## File System Protection
+
+### Path Traversal Protection
+When generating installers or archives, all target paths are validated to ensure they do not write outside the intended `--output-dir`. 
+
+### Atomic File Operations
+Files (like manifests or downloaded binaries) are written to a temporary `.tmp` suffix first, and atomically renamed. This prevents partial writes from corrupting an interrupted build.
+
+### Input Validation & Escaping
+Shell metacharacters, XML entities (for manifest generation), and language-specific escape sequences (like Ruby strings or TCL braces) are rigorously sanitized before being injected into templated installers.
+
+<Callout type="info">
+  Found a vulnerability? Please refer to our [Security Policy](https://github.com/system-releaser/security) for responsible disclosure.
+</Callout>

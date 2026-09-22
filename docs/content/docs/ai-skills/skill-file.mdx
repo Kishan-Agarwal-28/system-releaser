@@ -1,0 +1,284 @@
+---
+title: Skills
+description: Install the official system-releaser skill for AI coding agents using skills.sh or manual SKILL.md setup.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+The `system-releaser` skill teaches AI coding assistants (Claude Code, Cursor, Windsurf, GitHub Copilot, Antigravity) how to automatically detect project languages, generate release manifests, execute preflight checks, and publish multi-platform releases.
+
+You can install this skill automatically using the **skills.sh** package manager, or embed a `SKILL.md` file directly into your repository.
+
+## 1. Quick Install via skills.sh
+
+[skills.sh](https://skills.sh) is the open directory and package manager for AI Agent Skills. Using the `npx skills` CLI, you can discover, install, and update skills across all major coding assistants.
+
+<Tabs items={["Universal (All Agents)", "Cursor", "Claude Code", "Windsurf", "GitHub Copilot"]}>
+  <Tab value="Universal (All Agents)">
+    ```bash
+    # Automatically detects your configured agents and installs the skill
+    npx skills add user/system-releaser
+    ```
+  </Tab>
+  <Tab value="Cursor">
+    ```bash
+    # Installs to .cursor/skills/ or .agents/skills/
+    npx skills add user/system-releaser -a cursor
+    ```
+  </Tab>
+  <Tab value="Claude Code">
+    ```bash
+    # Installs to .claude/skills/
+    npx skills add user/system-releaser -a claude-code
+    ```
+  </Tab>
+  <Tab value="Windsurf">
+    ```bash
+    # Installs to .windsurf/skills/ or .agents/skills/
+    npx skills add user/system-releaser -a windsurf
+    ```
+  </Tab>
+  <Tab value="GitHub Copilot">
+    ```bash
+    # Configures instructions for GitHub Copilot Workspace
+    npx skills add user/system-releaser -a copilot
+    ```
+  </Tab>
+</Tabs>
+
+### Skill Management Commands
+
+When installed with `skills.sh`, your repository tracks skill dependencies in a `skills-lock.json` file. Use these commands to maintain your skills:
+
+```bash
+# View all installed skills and their source repositories
+npx skills list
+
+# Check for updates against the upstream registry
+npx skills check
+
+# Update all skills to their latest version
+npx skills update
+
+# Remove the system-releaser skill
+npx skills remove system-releaser
+```
+
+<Callout title="Universal Directory Standard" type="info">
+The `skills.sh` CLI places canonical skill folders in `.agents/skills/system-releaser` and creates symlinks for `.claude/skills/` and `.cursor/skills/` automatically.
+</Callout>
+
+---
+
+## 2. Supported Agent Environments
+
+| Agent / Tool | Storage Location | Activation Trigger |
+| :--- | :--- | :--- |
+| **Claude Code** | `.claude/skills/system-releaser/` | Automatic on release, publish, and packaging queries |
+| **Cursor** | `.cursor/rules/` or `.agents/skills/` | Automatic or `@system-releaser` reference |
+| **Windsurf** | `.windsurf/skills/` or `.agents/skills/` | Automatic context matching |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Workspace prompt injection |
+| **Antigravity** | `.agents/skills/system-releaser/` | Autonomous agent discovery |
+
+---
+
+## 3. Manual Installation
+
+If you prefer not to use a package manager, you can manually embed the skill into your project in two steps.
+
+<Steps>
+  <Step>
+    ### Create the skill directory
+
+    Create the appropriate directory for your agent:
+
+    ```bash
+    # Standard multi-agent directory
+    mkdir -p .agents/skills/system-releaser
+
+    # Or for Claude Code:
+    mkdir -p .claude/skills/system-releaser
+
+    # Or for Cursor Rules:
+    mkdir -p .cursor/rules
+    ```
+  </Step>
+
+  <Step>
+    ### Create and save SKILL.md
+
+    Create a file named `SKILL.md` inside that directory (or `system-releaser.mdc` in `.cursor/rules/`), and paste the specification below.
+  </Step>
+</Steps>
+
+---
+
+## 4. Complete SKILL.md Specification
+
+Copy this specification directly into your repository:
+
+````markdown
+---
+name: system-releaser
+description: Automates binary release engineering, cross-compilation, packaging, manifest generation (14 package managers), and GitHub Releases publishing across 23 languages.
+---
+
+# system-releaser Agent Skill
+
+This skill guides AI coding assistants in automating software releases using system-releaser.
+
+## 1. When to Use This Skill
+
+Activate this skill when:
+- The user asks to release, publish, or package their software.
+- Setting up multi-platform binary distribution (Linux, macOS, Windows).
+- Generating package manager manifests (Homebrew, WinGet, APT, Pacman, Scoop, Chocolatey, Nix, etc.).
+- Creating universal installation scripts (install.sh and install.ps1).
+- Configuring automated CI/CD release workflows on GitHub Actions.
+- Debugging preflight validation errors or failed releases.
+
+## 2. CLI Command Workflows
+
+Always follow this sequence when preparing or publishing a release:
+
+### Phase 1: Project Discovery
+```bash
+releaser detect
+```
+- Scans root manifest files (Cargo.toml, go.mod, package.json, pyproject.toml, etc.).
+- Identifies the primary programming language and default compiler toolchain.
+- Reports confidence level and detected project name and version.
+
+### Phase 2: Configuration Initialization
+```bash
+# Generate baseline releaser.yaml
+releaser init
+
+# Include all 14 package managers in the template
+releaser init --full
+
+# Force overwrite existing configuration
+releaser init --force
+```
+
+### Phase 3: Preflight Validation
+```bash
+releaser check
+```
+Runs 6 critical environment audits:
+1. Syntax and schema validation of releaser.yaml.
+2. Required compiler toolchain presence in PATH.
+3. Cleanliness of the git working tree.
+4. Resolution of the 6 target cross-compilation platforms.
+5. Presence and validity of GITHUB_TOKEN.
+6. Package manager generator prerequisites.
+
+### Phase 4: Test Suite Execution
+```bash
+releaser test
+```
+Executes the native test runner for the detected project language (e.g. cargo test, go test ./..., npm test, pytest).
+
+### Phase 5: Build, Package, and Publish
+```bash
+# Dry run (builds, packages, and hashes without pushing git tags or GitHub releases)
+releaser release --dry-run
+
+# Patch bump (e.g. 1.0.0 -> 1.0.1)
+releaser release --patch
+
+# Minor bump (e.g. 1.0.0 -> 1.1.0)
+releaser release --minor
+
+# Major bump (e.g. 1.0.0 -> 2.0.0)
+releaser release --major
+
+# Explicit semver release
+releaser release --set-version 2.1.0
+```
+
+### Phase 6: CI/CD Generation
+```bash
+releaser init-ci
+```
+Generates .github/workflows/release.yml for automated releases on git tag pushes.
+
+## 3. Configuration Contract (releaser.yaml)
+
+```yaml
+name: my-app                   # Binary application name
+version: auto                 # Resolves from git tag or project manifest
+description: CLI utility      # Project summary
+homepage: https://example.com # Project website
+repository: user/my-app       # GitHub owner/repo
+license: MIT OR Apache-2.0    # SPDX license identifier
+
+# 6 standard cross-compilation targets
+platforms:
+  - linux/amd64               # x86_64-unknown-linux-musl (.tar.gz)
+  - linux/arm64               # aarch64-unknown-linux-musl (.tar.gz)
+  - darwin/arm64              # aarch64-apple-darwin (.tar.gz)
+  - darwin/amd64              # x86_64-apple-darwin (.tar.gz)
+  - windows/amd64             # x86_64-pc-windows-msvc (.zip)
+  - windows/arm64             # aarch64-pc-windows-msvc (.zip)
+
+# Enabled package manager manifest generators
+package_managers:
+  - homebrew                  # Formula/my-app.rb
+  - winget                    # manifests/u/my-app.yaml
+  - pacman                    # PKGBUILD
+  - scoop                     # bucket/my-app.json
+  - choco                     # my-app.nuspec + chocolateyInstall.ps1
+  - nix                       # flake.nix
+  - apt                       # debian/control
+  - rpm                       # my-app.spec
+  - apk                       # APKBUILD
+  - snap                      # snapcraft.yaml
+  - flatpak                   # my-app.yaml
+  - macports                  # Portfile
+  - appimage                  # AppRun + AppImage.yml
+  - asdf_mise                 # bin/list-all, bin/download, bin/install
+
+install_scripts:
+  enabled: true
+  sh_name: install.sh
+  ps1_name: install.ps1
+  install_dir_unix: /usr/local/bin
+  install_dir_win: $HOME/.local/bin
+
+output_dir: dist
+```
+
+## 4. Security Invariants for AI Agents
+
+When modifying release configurations or generating custom build scripts, maintain these security invariants:
+1. Never pass tokens in CLI arguments: Pass GITHUB_TOKEN via environment variable or global config. system-releaser injects it via temporary curl config files (-K) with 0600 permissions.
+2. Path Traversal Protection: Ensure output_dir is a relative subfolder without ".." parent references.
+3. Atomic Operations: All archives stage in .tmp files before being atomically renamed upon SHA-256 verification.
+````
+
+---
+
+## 5. Verification Prompts
+
+After installing the skill, test that your agent recognizes system-releaser with these sample prompts:
+
+```text
+Check if system-releaser is configured for this repository. If not, run releaser init and show me the resulting configuration.
+```
+
+```text
+Prepare a dry-run release for this project and verify that all 6 platform targets compile cleanly.
+```
+
+---
+
+## 6. Direct LLM Endpoints
+
+If your AI tool accepts direct URL ingestion (like Cursor `@Docs` or Claude Projects), you can provide our machine-readable context endpoints:
+
+* **`/llms.txt`**: Architectural summary, CLI command list, and common workflows.
+* **`/llms-full.txt`**: Complete documentation, CLI reference, and full configuration schema.

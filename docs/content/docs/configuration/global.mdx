@@ -1,0 +1,52 @@
+---
+title: Global Configuration
+description: Managing global user settings and authentication tokens in config.yaml.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+To avoid passing API tokens and repository keys across every project, `system-releaser` supports global user configuration.
+
+---
+
+## File Location
+
+- **Linux & macOS**: `~/.config/system-releaser/config.yaml`
+- **Windows**: `%APPDATA%\system-releaser\config.yaml`
+
+---
+
+## Schema
+
+```yaml
+# Global GitHub Personal Access Token
+github_token: ghp_xxxxxxxxxxxxxxxxxxxx
+
+# Chocolatey API Key for automated pushes
+choco_api_key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# WinGet REST token or access credentials
+winget_token: xxxxxxxxxxxxxxxxxxxx
+
+# Default build mode across projects
+default_build_mode: local
+
+# Default target platforms
+default_platforms: all
+```
+
+---
+
+## Security & Permissions
+
+<Callout type="warn">
+  On Unix systems, `system-releaser` automatically enforces strict file permissions (`0600` — readable and writable only by the file owner) on `config.yaml`. This ensures tokens cannot be read by other local users.
+</Callout>
+
+### Environment Variable Overrides
+
+Environment variables always take precedence over the global configuration file:
+
+- `GITHUB_TOKEN` overrides `github_token`.
+- `CHOCO_API_KEY` overrides `choco_api_key`.
+- `WINGET_TOKEN` overrides `winget_token`.

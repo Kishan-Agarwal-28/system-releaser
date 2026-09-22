@@ -1,0 +1,51 @@
+---
+title: Introduction
+description: Overview of system-releaser, architecture, and core capabilities.
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+**system-releaser** is an opinionated, security-hardened project detection, cross-platform build, and multi-package-manager release engine written in Rust.
+
+With zero or minimal configuration, `system-releaser` inspects your project directory, detects the programming language and existing manifests, executes your native test suites, bumps semantic versions, compiles cross-platform binaries, generates universal one-liner installer scripts (`curl | sh` and `irm | iex`), and builds production-ready manifests across **14 system package managers** and **23 programming languages**.
+
+---
+
+## Key Capabilities
+
+<Cards>
+  <Card title="Polyglot Project Detection" href="/docs/languages">
+    Inspects manifests (`Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`, etc.) and detects workspace monorepos across 23 languages.
+  </Card>
+  <Card title="14 Package Managers" href="/docs/package-managers">
+    Generates validated manifests for Homebrew, WinGet, Chocolatey, Scoop, Pacman, Snap, APT, RPM, Alpine APK, Nix, Flatpak, AppImage, asdf/mise, and MacPorts.
+  </Card>
+  <Card title="Universal One-Liners" href="/docs/installers">
+    Hardened POSIX `install.sh` and Windows PowerShell `install.ps1` scripts with multi-architecture detection and SHA-256 cryptographic verification.
+  </Card>
+  <Card title="Automated Version Bumping" href="/docs/cli/release">
+    Bump releases with `--patch`, `--minor`, `--major`, or `--set-version`. Automatically synchronizes manifests, commits, and creates annotated Git tags.
+  </Card>
+  <Card title="Security Hardened" href="/docs/security">
+    Full audit protection against command injection (CWE-78), path traversal (CWE-22), template injection (CWE-94), and credential leakage (CWE-214).
+  </Card>
+  <Card title="Turnkey CI/CD" href="/docs/ci-cd/github-actions">
+    Generate lightweight GitHub Actions release workflows in seconds with `system-releaser init-ci`.
+  </Card>
+</Cards>
+
+---
+
+## Why system-releaser?
+
+Maintaining software release pipelines across multiple operating systems and distribution channels is traditionally complex:
+- Different package managers require distinct manifest syntaxes (YAML, JSON, Ruby DSL, Bash scripts, RPM Spec, TCL Portfiles).
+- Installing binaries requires writing custom OS-specific shell scripts that handle architecture detection and checksum integrity.
+- Cross-platform paths, non-UTF-8 characters, and monorepos often break ad-hoc release scripts.
+
+`system-releaser` solves this by providing a single, reliable CLI tool that manages the entire lifecycle: **Detect → Verify → Test → Build → Package → Sign → Distribute**.
+
+<Callout type="info">
+  Explore the [Quick Start Guide](/docs/quick-start) to set up automated releases for your project in under 5 minutes.
+</Callout>

@@ -1,0 +1,26 @@
+import { RootProvider } from 'fumadocs-ui/provider/next';
+import './global.css';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+});
+
+export const metadata = {
+  metadataBase: new URL('https://system-releaser.dev'),
+  title: {
+    template: '%s | system-releaser',
+    default: 'system-releaser: Zero-friction Multi-platform Release Engine',
+  },
+  description: 'Automated project detection, cross-compilation, package managers, and releases.',
+};
+
+export default function Layout({ children }: LayoutProps<'/'>) {
+  return (
+    <html lang="en" className={inter.className} suppressHydrationWarning>
+      <body className="flex flex-col min-h-screen">
+        <RootProvider>{children}</RootProvider>
+      </body>
+    </html>
+  );
+}

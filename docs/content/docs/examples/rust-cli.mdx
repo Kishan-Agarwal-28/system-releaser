@@ -1,0 +1,177 @@
+---
+title: Rust CLI Example
+description: A complete end-to-end tutorial for releasing a Rust CLI application.
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+This tutorial guides you through creating a simple Rust CLI application from scratch and releasing it using system-releaser.
+
+<Steps>
+
+<Step>
+### Create the project
+
+Start by creating a new Rust binary project using Cargo:
+
+```bash
+cargo new my-rusty-tool
+cd my-rusty-tool
+```
+
+Add the `clap` crate for parsing command-line arguments:
+
+```bash
+cargo add clap --features derive
+```
+
+Update `src/main.rs` with a simple CLI:
+
+```rust
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "my-rusty-tool")]
+#[command(version = "0.1.0")]
+#[command(about = "A simple rusty tool", long_about = None)]
+struct Cli {
+    /// Name to greet
+    #[arg(short, long)]
+    name: String,
+}
+
+fn main() {
+    let cli = Cli::parse();
+    println!("Hello, {}! This is my rusty tool.", cli.name);
+}
+```
+</Step>
+
+<Step>
+### Initialize system-releaser
+
+Run the init command to generate the configuration:
+
+```bash
+releaser init
+```
+
+**Terminal Output:**
+```
+🚀 system-releaser v1.0.0
+🔍 Scanning project directory...
+✅ Detected Language: Rust (Cargo)
+✅ Detected Version: 0.1.0
+
+📝 Generated releaser.yaml
+```
+
+Edit the generated `releaser.yaml` to configure Homebrew and strip the binary:
+
+```yaml
+name: my-rusty-tool
+description: A simple rusty tool
+repository: my-org/my-rusty-tool
+
+build:
+  binary_name: my-rusty-tool
+  strip: true
+
+targets:
+  - os: linux
+    arch: amd64
+  - os: darwin
+    arch: amd64
+  - os: darwin
+    arch: arm64
+  - os: windows
+    arch: amd64
+
+package_managers:
+  homebrew:
+    enabled: true
+    tap: my-org/homebrew-tap
+
+github:
+  owner: my-org
+  repo: my-rusty-tool
+```
+</Step>
+
+<Step>
+### Run the Release
+
+Make sure you've committed your code, created a git tag, and pushed it to GitHub. Then, run the release pipeline:
+
+```bash
+export GITHUB_TOKEN=ghp_your_secret_token
+releaser release
+```
+
+**Terminal Output:**
+```
+🚀 Starting release pipeline for my-rusty-tool v0.1.0
+📦 Building targets using cargo...
+  - linux-amd64
+  - darwin-amd64
+  - darwin-arm64
+  - windows-amd64
+✅ Builds complete
+
+📜 Generating install_sh script...
+📜 Generating install_ps1 script...
+📜 Generating Homebrew formula my-rusty-tool.rb...
+✅ Packaging complete
+
+📤 Uploading artifacts to GitHub Releases...
+✅ Successfully published release v0.1.0!
+```
+</Step>
+
+<Step>
+### Review the Artifacts
+
+On your GitHub Releases page, you'll see a clean, professional release containing:
+
+- `my-rusty-tool-linux-amd64.tar.gz`
+- `my-rusty-tool-darwin-amd64.tar.gz`
+- `my-rusty-tool-darwin-arm64.tar.gz`
+- `my-rusty-tool-windows-amd64.zip`
+- `install.sh`
+- `install.ps1`
+- `checksums.txt`
+
+The generated **Homebrew formula** (automatically pushed to your tap repository) looks like this:
+
+```ruby
+class MyRustyTool < Formula
+  desc "A simple rusty tool"
+  homepage "https://github.com/my-org/my-rusty-tool"
+  version "0.1.0"
+
+  on_macos do
+    if Hardware::CPU.intel?
+      url "https://github.com/my-org/my-rusty-tool/releases/download/v0.1.0/my-rusty-tool-darwin-amd64.tar.gz"
+      sha256 "..."
+    end
+    if Hardware::CPU.arm?
+      url "https://github.com/my-org/my-rusty-tool/releases/download/v0.1.0/my-rusty-tool-darwin-arm64.tar.gz"
+      sha256 "..."
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.intel?
+      url "https://github.com/my-org/my-rusty-tool/releases/download/v0.1.0/my-rusty-tool-linux-amd64.tar.gz"
+      sha256 "..."
+    end
+  end
+
+  def install
+    bin.install "my-rusty-tool"
+  end
+end
+```
+</Step>
+</Steps>

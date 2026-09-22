@@ -1,0 +1,40 @@
+---
+title: Universal Installers
+description: Hardened curl, wget, and PowerShell installer scripts.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+`system-releaser` generates self-contained installation scripts that allow users to install your CLI application with a single command.
+
+---
+
+## 1. POSIX Shell Installer (`install.sh`)
+
+```bash
+curl -fsSL https://github.com/user/my-app/releases/latest/download/install.sh | sh
+# or
+wget -qO- https://github.com/user/my-app/releases/latest/download/install.sh | sh
+```
+
+### Features & Security
+- **Multi-OS Detection**: Detects `linux`, `darwin` (macOS), and `freebsd`.
+- **Architecture Mapping**: Detects `amd64` (x86_64) and `arm64` (aarch64).
+- **Cryptographic Verification**: Downloads `checksums.txt` and uses an anchored `awk` parser (`$2 == filename { print $1 }`) to extract the exact expected SHA-256 hash. Verifies the archive using `sha256sum` or `shasum -a 256` before extraction.
+- **Sudo Safety**: Checks whether the current user is already root (`id -u`) before invoking `sudo`.
+- **Path Checking**: Uses exact colon-delimited token matching (`*":$INSTALL_DIR:"*`) against `$PATH` to provide informative warnings without false positives.
+
+---
+
+## 2. Windows PowerShell Installer (`install.ps1`)
+
+```powershell
+irm https://github.com/user/my-app/releases/latest/download/install.ps1 | iex
+```
+
+### Features & Security
+- **Architecture Detection**: Uses `[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture` to cleanly select `amd64` or `arm64`, explicitly rejecting incompatible 32-bit environments.
+- **Checksum Verification**: Fetches `checksums.txt`, computes archive SHA-256 via `Get-FileHash`, and aborts on any mismatch.
+- **Path Registration**: Installs the binary into `$HOME/.local/bin` and registers it in the User environment `Path` if not already present.
+- **Automatic Cleanup**: Wraps execution in a `try / finally` block that cleans up temporary extraction directories even if errors occur.

@@ -1,0 +1,52 @@
+---
+title: releaser detect
+description: Automatically detect your project's language and build system.
+---
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# releaser detect
+
+The `detect` command scans your project directory to identify the programming language, build system, and package manager. `system-releaser` supports 23 languages out of the box.
+
+## Usage
+
+```bash
+releaser detect [OPTIONS]
+```
+
+## How It Works
+
+The detector looks for specific "marker files" in your project root to determine the toolchain.
+
+### Supported Languages & Markers (Top Examples)
+
+- **Rust**: `Cargo.toml`
+- **Go**: `go.mod`
+- **JavaScript/Node.js**: `package.json`
+- **Python**: `setup.py`, `pyproject.toml`
+- **Ruby**: `Gemfile`
+- **Java**: `pom.xml`, `build.gradle`
+- **C/C++**: `CMakeLists.txt`, `Makefile`
+- *(See the full [Languages Matrix](/docs/languages) for all 23 languages)*
+
+## Monorepo Detection
+
+If `system-releaser` detects multiple markers (e.g., a `package.json` and a `Cargo.toml`), it will identify the project as a **Monorepo**. By default, it will ask you which sub-project to focus on, or you can specify it via `releaser.yaml`.
+
+## Example Output
+
+```text
+$ releaser detect
+[INFO] Scanning project directory: .
+[SUCCESS] Detected language: Rust
+[SUCCESS] Build system: Cargo
+[INFO] Version detected: 1.2.0
+```
+
+## What if detection is wrong?
+
+If `system-releaser` incorrectly identifies your project or if you're using a custom build script, you can override the detection by explicitly defining the language and build commands in your `releaser.yaml` via the `releaser init` command.
+
+<Callout type="info">
+  You can always run `releaser detect --verbose` to see exactly which files were scanned and matched.
+</Callout>

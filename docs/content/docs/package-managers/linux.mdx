@@ -1,0 +1,37 @@
+---
+title: Linux Package Managers
+description: Pacman, Snap, APT, RPM, Alpine APK, Flatpak, and AppImage.
+---
+
+`system-releaser` generates packages and manifests across all major Linux packaging distributions.
+
+---
+
+## 1. Pacman (Arch Linux & AUR)
+- **File**: `dist/PKGBUILD`
+- **Architectures**: `x86_64` and `aarch64`.
+- **Security**: Escapes `$`, `"`, `\`, and backticks inside `pkgdesc`.
+
+## 2. Snapcraft (Ubuntu / Universal Linux)
+- **File**: `dist/snapcraft.yaml`
+- **Features**: Configurable `grade` (`stable`/`devel`) and `confinement` (`classic`/`strict`).
+
+## 3. APT (.deb)
+- **Files**: `dist/control` and `dist/<app>_install_deb.sh`
+- **Features**: Generates Debian control file with multi-arch dependencies. The companion installer script downloads the released `.tar.gz`, verifies its SHA-256 against `checksums.txt`, builds a `.deb`, and installs it via `dpkg`.
+
+## 4. RPM (.spec)
+- **File**: `dist/<app>.spec`
+- **Features**: Uses RPM `%ifarch` macros to dynamically select `x86_64` vs `aarch64` sources. Escapes `%` spec macros in descriptions.
+
+## 5. Alpine Linux (APKBUILD)
+- **File**: `dist/APKBUILD`
+- **Features**: Valid `abuild` recipe with multi-arch tarball URLs and SHA-256 validation.
+
+## 6. Flatpak
+- **File**: `dist/flatpak.yaml`
+- **Features**: Freedesktop runtime platform integration with network/ipc sandboxing.
+
+## 7. AppImage
+- **Files**: `dist/AppImage.yml`, `dist/AppRun`, and `dist/<app>.desktop`
+- **Features**: Standalone recipe with architecture parameterization (`amd64` / `arm64`).

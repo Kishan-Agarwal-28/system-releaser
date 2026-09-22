@@ -1,0 +1,134 @@
+---
+title: Quick Start
+description: Get up and running with system-releaser in under 5 minutes.
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+This guide will walk you through setting up and running your first release with system-releaser. We'll use a standard Rust CLI project as an example, but the concepts apply to all 23 supported languages.
+
+<Steps>
+
+<Step>
+### Initialize your project
+
+Navigate to your project directory and run the initialization command:
+
+```bash
+releaser init
+```
+
+**Terminal Output:**
+```
+🚀 system-releaser v1.0.0
+🔍 Scanning project directory...
+✅ Detected Language: Rust (Cargo)
+✅ Detected Repository: https://github.com/user/my-awesome-cli
+✅ Detected Version: 0.1.0 (from Cargo.toml)
+
+📝 Generated releaser.yaml
+🎉 Initialization complete! Run 'releaser check' to validate your setup.
+```
+
+This creates a `releaser.yaml` configuration file tailored to your project.
+</Step>
+
+<Step>
+### Review the generated configuration
+
+Open the newly created `releaser.yaml` file:
+
+```yaml
+name: my-awesome-cli
+version: 0.1.0
+description: A really awesome CLI tool
+repository: user/my-awesome-cli
+
+build:
+  binary_name: my-awesome-cli
+
+targets:
+  - os: linux
+    arch: amd64
+  - os: darwin
+    arch: amd64
+  - os: darwin
+    arch: arm64
+  - os: windows
+    arch: amd64
+
+github:
+  owner: user
+  repo: my-awesome-cli
+```
+<Callout type="tip">
+system-releaser automatically infers targets based on the detected language and typical usage. You can customize these as needed!
+</Callout>
+</Step>
+
+<Step>
+### Check your environment
+
+Before running a release, it's good practice to validate your environment and configuration:
+
+```bash
+releaser check
+```
+
+**Terminal Output:**
+```
+🔍 Validating releaser.yaml... OK
+🔍 Checking build tools (cargo)... OK
+🔍 Checking GitHub token... OK (found in environment)
+✅ All checks passed! Ready for release.
+```
+</Step>
+
+<Step>
+### Run the release!
+
+Now, trigger the full release pipeline. By default, this will build your project for all targets, package the binaries, generate manifests, and publish to GitHub Releases.
+
+Ensure you have your `GITHUB_TOKEN` environment variable set.
+
+```bash
+releaser release --verbose
+```
+
+**Terminal Output:**
+```
+🚀 Starting release pipeline for my-awesome-cli v0.1.0
+📦 Building target: linux-amd64...
+📦 Building target: darwin-amd64...
+📦 Building target: darwin-arm64...
+📦 Building target: windows-amd64...
+✅ Builds complete (4/4)
+
+📜 Generating install scripts...
+📜 Generating Homebrew formula...
+✅ Packaging complete
+
+📤 Uploading artifacts to GitHub Releases...
+✅ Successfully published release v0.1.0!
+🔗 View release: https://github.com/user/my-awesome-cli/releases/tag/v0.1.0
+```
+</Step>
+</Steps>
+
+## What just happened?
+
+In just a few commands, system-releaser:
+1. **Detected** your project type and configuration.
+2. **Cross-compiled** your application for multiple OS and architecture combinations.
+3. **Generated** universal installation scripts (shell & PowerShell).
+4. **Packaged** the binaries and created checksums.
+5. **Published** everything to a drafted or finalized GitHub Release.
+
+## Next Steps
+
+<Cards>
+  <Card title="Configuration Guide" href="/docs/configuration/project" description="Learn about all the options available in releaser.yaml" />
+  <Card title="CI/CD Integration" href="/docs/guides/ci-cd" description="Automate system-releaser in GitHub Actions" />
+</Cards>

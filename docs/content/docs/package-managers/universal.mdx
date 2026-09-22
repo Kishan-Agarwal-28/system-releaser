@@ -1,0 +1,33 @@
+---
+title: Universal Package Managers
+description: Nix Flakes and asdf / mise tool version managers.
+---
+
+`system-releaser` generates configurations for cross-platform declarative packaging systems.
+
+---
+
+## 1. Nix Flake (`flake.nix`)
+
+Generates a standalone `flake.nix` that exposes packages for 4 systems:
+- `x86_64-linux`
+- `aarch64-linux`
+- `x86_64-darwin`
+- `aarch64-darwin`
+
+Nix string interpolation (`${...}`) is escaped, and accurate SHA-256 hashes are injected for each system.
+
+### Running with Nix
+Users can immediately run your release using:
+```bash
+nix run github:my-org/my-tool
+```
+
+---
+
+## 2. asdf & mise (`dist/asdf/`)
+
+Generates the three required plugin scripts for `asdf` and `mise`:
+- `bin/list-all`: Lists available versions from GitHub release tags.
+- `bin/download`: Downloads the appropriate multi-architecture tarball and validates SHA-256 against `checksums.txt`.
+- `bin/install`: Extracts the binary and links it to the tool shim directory.
