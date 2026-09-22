@@ -13,9 +13,12 @@ use crate::platform::TargetPlatform;
 use crate::test_runner::run_project_tests;
 use crate::version::{git_commit_and_tag, resolve_current_version, sync_version_to_manifests, VersionBump};
 
+#[derive(Debug, Clone)]
 pub struct ReleaseOptions {
     pub project_dir: PathBuf,
     pub bump: Option<VersionBump>,
+    pub host_only: bool,
+    pub target_platforms: Option<Vec<TargetPlatform>>,
     pub skip_tests: bool,
     pub dry_run: bool,
 }
@@ -102,14 +105,21 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
     println!("Building release v{} for '{}'...", target_version, config.name);
 
     // 6. Resolve target platforms
-    let targets = match &config.platforms {
-        crate::config::PlatformsConfig::All => TargetPlatform::all_standard(),
-        crate::config::PlatformsConfig::Specific(list) => {
-            let mut resolved = Vec::new();
-            for s in list {
-                resolved.push(s.parse::<TargetPlatform>()?);
+    let targets = if options.host_only {
+        vec![TargetPlatform::host()]
+    } else if let Some(ref explicit_targets) = options.target_platforms {
+        explicit_targets.clone()
+    } else {
+        match &config.platforms {
+            crate::config::PlatformsConfig::All => TargetPlatform::all_standard(),
+            crate::config::PlatformsConfig::Host => vec![TargetPlatform::host()],
+            crate::config::PlatformsConfig::Specific(list) => {
+                let mut resolved = Vec::new();
+                for s in list {
+                    resolved.push(s.parse::<TargetPlatform>()?);
+                }
+                resolved
             }
-            resolved
         }
     };
 
@@ -144,33 +154,47 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
     // 7. Build binaries & package archives
     for target in &targets {
         println!("Compiling for target: {}...", target);
-        let build_res = build_target(dir, language, &config.name, target, &binaries_dir)?;
+        match build_target(dir, language, &config.name, target, &binaries_dir) {
+            Ok(build_res) => {
+                if build_res.binary_path.is_file() {
+                    built_binaries.push(build_res.binary_path.clone());
 
-        if build_res.binary_path.is_file() {
-            built_binaries.push(build_res.binary_path.clone());
+                    let archive_filename = target.archive_name(&config.name, &target_version.to_string());
+                    let archive_path = output_dir.join(&archive_filename);
 
-            let archive_filename = target.archive_name(&config.name, &target_version.to_string());
-            let archive_path = output_dir.join(&archive_filename);
+                    let binary_entry_name = target.binary_name(&config.name);
+                    let mut files_in_archive = vec![(build_res.binary_path.as_path(), binary_entry_name.as_str())];
 
-            let binary_entry_name = target.binary_name(&config.name);
-            let mut files_in_archive = vec![(build_res.binary_path.as_path(), binary_entry_name.as_str())];
+                    if let Some(ref lic) = license_path {
+                        files_in_archive.push((lic.as_path(), "LICENSE"));
+                    }
 
-            if let Some(ref lic) = license_path {
-                files_in_archive.push((lic.as_path(), "LICENSE"));
+                    if target.os == crate::platform::OS::Windows {
+                        create_zip(&archive_path, &files_in_archive)?;
+                    } else {
+                        create_tar_gz(&archive_path, &files_in_archive)?;
+                    }
+
+                    let hash = compute_sha256(&archive_path)?;
+                    let key = format!("{}_{}", target.os, target.arch);
+                    hashes.insert(key, hash);
+
+                    archives.push(archive_path);
+                }
             }
-
-            if target.os == crate::platform::OS::Windows {
-                create_zip(&archive_path, &files_in_archive)?;
-            } else {
-                create_tar_gz(&archive_path, &files_in_archive)?;
+            Err(err) => {
+                if target.is_host() {
+                    return Err(format!("Host build failed for target '{}': {}", target, err).into());
+                } else {
+                    println!("Notice: Skipping target '{}' (cross-compilation unavailable on this host).", target);
+                    println!("  (Tip: Run in GitHub Actions CI for multi-platform releases, or use '--host-only' for local releases)");
+                }
             }
-
-            let hash = compute_sha256(&archive_path)?;
-            let key = format!("{}_{}", target.os, target.arch);
-            hashes.insert(key, hash);
-
-            archives.push(archive_path);
         }
+    }
+
+    if built_binaries.is_empty() {
+        return Err("No target binaries could be built successfully. Release aborted.".into());
     }
 
     // 8. Generate checksums.txt
@@ -258,6 +282,8 @@ package_managers:
         let options = ReleaseOptions {
             project_dir: dir.path().to_path_buf(),
             bump: None,
+            host_only: false,
+            target_platforms: None,
             skip_tests: true,
             dry_run: true,
         };
@@ -266,5 +292,68 @@ package_managers:
         assert_eq!(summary.version, Version::new(0, 1, 0));
         assert!(summary.checksums_file.is_file());
         assert!(!summary.manifests.is_empty());
+    }
+
+    #[test]
+    fn test_execute_release_host_only() {
+        let dir = tempdir().unwrap();
+
+        let cargo_toml = "[package]\nname = \"host-test\"\nversion = \"0.2.0\"\n";
+        fs::write(dir.path().join("Cargo.toml"), cargo_toml).unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+
+        let releaser_yaml = r#"
+name: host-test
+version: 0.2.0
+platforms: all
+"#;
+        fs::write(dir.path().join("releaser.yaml"), releaser_yaml).unwrap();
+
+        let options = ReleaseOptions {
+            project_dir: dir.path().to_path_buf(),
+            bump: None,
+            host_only: true,
+            target_platforms: None,
+            skip_tests: true,
+            dry_run: true,
+        };
+
+        let summary = execute_release(options).unwrap();
+        assert_eq!(summary.version, Version::new(0, 2, 0));
+        assert_eq!(summary.built_binaries.len(), 1);
+        assert_eq!(summary.archives.len(), 1);
+        assert!(summary.checksums_file.is_file());
+    }
+
+    #[test]
+    fn test_execute_release_platforms_host_config() {
+        let dir = tempdir().unwrap();
+
+        let cargo_toml = "[package]\nname = \"cfg-host-test\"\nversion = \"0.3.0\"\n";
+        fs::write(dir.path().join("Cargo.toml"), cargo_toml).unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+
+        let releaser_yaml = r#"
+name: cfg-host-test
+version: 0.3.0
+platforms: host
+"#;
+        fs::write(dir.path().join("releaser.yaml"), releaser_yaml).unwrap();
+
+        let options = ReleaseOptions {
+            project_dir: dir.path().to_path_buf(),
+            bump: None,
+            host_only: false,
+            target_platforms: None,
+            skip_tests: true,
+            dry_run: true,
+        };
+
+        let summary = execute_release(options).unwrap();
+        assert_eq!(summary.version, Version::new(0, 3, 0));
+        assert_eq!(summary.built_binaries.len(), 1);
+        assert_eq!(summary.archives.len(), 1);
     }
 }

@@ -1,0 +1,357 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kishan-agarwal-28.github.io/system-releaser/schema.json",
+  "title": "System Releaser Configuration",
+  "description": "Configuration schema for system-releaser (releaser.yaml), the universal language-agnostic release automation CLI.",
+  "type": "object",
+  "required": [
+    "name"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL referencing the JSON Schema definition for editor autocompletion."
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9._-]+$",
+      "description": "Name of the binary, application, or package. Used in release archive naming and package manifests."
+    },
+    "version": {
+      "type": "string",
+      "default": "auto",
+      "description": "Release semver version (e.g. '1.2.0') or 'auto' to automatically extract from project manifests (Cargo.toml, package.json, go.mod, etc.) or git tags."
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of the project, included in package manager metadata and distribution manifests."
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "Project homepage or documentation URL."
+    },
+    "repository": {
+      "type": "string",
+      "description": "GitHub repository in 'owner/repo' format or full URL. Used for GitHub Releases upload and package manifests."
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier (e.g., 'MIT', 'Apache-2.0', 'GPL-3.0', 'BSD-3-Clause')."
+    },
+    "icon_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Public URL to a square PNG or SVG icon used by desktop and GUI package managers (Winget, Chocolatey, Scoop, Flatpak, AppImage)."
+    },
+    "platforms": {
+      "description": "Target compilation platforms. Specify 'all' for standard 6 targets (Linux, macOS, Windows x x86_64, arm64), 'host' for only the current development machine, or an explicit array of platform targets.",
+      "default": "all",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "all",
+            "host"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "linux/amd64",
+              "linux/arm64",
+              "darwin/amd64",
+              "darwin/arm64",
+              "windows/amd64",
+              "windows/arm64",
+              "linux-amd64",
+              "linux-arm64",
+              "darwin-amd64",
+              "darwin-arm64",
+              "windows-amd64",
+              "windows-arm64",
+              "linux-x64",
+              "darwin-x64",
+              "windows-x64"
+            ]
+          },
+          "uniqueItems": true
+        }
+      ]
+    },
+    "build": {
+      "type": "object",
+      "description": "Build execution mode and lifecycle hooks.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "local",
+            "ci"
+          ],
+          "default": "local",
+          "description": "Execution mode: 'local' builds on the host machine; 'ci' optimizes execution for GitHub Actions CI matrix runners."
+        },
+        "pre_build": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Shell commands executed sequentially before compiling targets (e.g. code generation, linting)."
+        },
+        "post_build": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Shell commands executed sequentially after all targets compile (e.g. code signing, artifact compression)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "package_managers": {
+      "description": "Package manager manifests to generate. Specify an array of names or a mapping with per-package-manager settings.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "winget",
+              "choco",
+              "chocolatey",
+              "scoop",
+              "homebrew",
+              "brew",
+              "macports",
+              "port",
+              "nix",
+              "nixpkgs",
+              "apt",
+              "deb",
+              "pacman",
+              "arch",
+              "rpm",
+              "yum",
+              "dnf",
+              "apk",
+              "alpine",
+              "snap",
+              "snapcraft",
+              "flatpak",
+              "appimage",
+              "asdf_mise",
+              "asdf",
+              "mise"
+            ]
+          },
+          "uniqueItems": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "homebrew": {
+              "type": "object",
+              "description": "Homebrew formula settings.",
+              "properties": {
+                "tap": {
+                  "type": "string",
+                  "description": "Custom GitHub Homebrew tap repository (e.g. 'owner/homebrew-tap')."
+                },
+                "caveats": {
+                  "type": "string",
+                  "description": "Post-installation message displayed to users after running brew install."
+                }
+              },
+              "additionalProperties": false
+            },
+            "winget": {
+              "type": "object",
+              "description": "Windows Package Manager (WinGet) manifest settings.",
+              "properties": {
+                "publisher": {
+                  "type": "string",
+                  "description": "Publisher or organization name shown in Windows Package Manager."
+                },
+                "license_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "URL to the license terms."
+                }
+              },
+              "additionalProperties": false
+            },
+            "choco": {
+              "type": "object",
+              "description": "Chocolatey .nuspec and install script settings.",
+              "properties": {
+                "author": {
+                  "type": "string",
+                  "description": "Author name shown in Chocolatey gallery."
+                },
+                "tags": {
+                  "type": "string",
+                  "description": "Space-delimited tags for Chocolatey package discovery."
+                }
+              },
+              "additionalProperties": false
+            },
+            "scoop": {
+              "type": "object",
+              "description": "Scoop JSON manifest settings.",
+              "properties": {
+                "bucket": {
+                  "type": "string",
+                  "description": "Scoop bucket name or repository URL."
+                }
+              },
+              "additionalProperties": false
+            },
+            "apt": {
+              "type": "object",
+              "description": "Debian / Ubuntu APT control file and installer settings.",
+              "properties": {
+                "maintainer": {
+                  "type": "string",
+                  "description": "Maintainer name and contact email (e.g. 'Jane Doe <jane@example.com>')."
+                },
+                "section": {
+                  "type": "string",
+                  "default": "utils",
+                  "description": "Debian package section classification."
+                },
+                "priority": {
+                  "type": "string",
+                  "default": "optional",
+                  "description": "Package priority in Debian archives."
+                }
+              },
+              "additionalProperties": false
+            },
+            "pacman": {
+              "type": "object",
+              "description": "Arch Linux PKGBUILD settings.",
+              "properties": {
+                "pkgrel": {
+                  "type": "integer",
+                  "default": 1,
+                  "description": "Arch Linux package release number."
+                }
+              },
+              "additionalProperties": false
+            },
+            "rpm": {
+              "type": "object",
+              "description": "Fedora / RHEL / openSUSE RPM .spec file settings.",
+              "properties": {
+                "group": {
+                  "type": "string",
+                  "default": "Applications/System",
+                  "description": "RPM software group category."
+                }
+              },
+              "additionalProperties": false
+            },
+            "apk": {
+              "type": "object",
+              "description": "Alpine Linux APKBUILD settings.",
+              "additionalProperties": false
+            },
+            "snap": {
+              "type": "object",
+              "description": "Canonical Snapcraft manifest settings.",
+              "properties": {
+                "grade": {
+                  "type": "string",
+                  "enum": [
+                    "stable",
+                    "devel"
+                  ],
+                  "default": "stable",
+                  "description": "Release quality grade for Snap Store."
+                },
+                "confinement": {
+                  "type": "string",
+                  "enum": [
+                    "strict",
+                    "classic",
+                    "devmode"
+                  ],
+                  "default": "strict",
+                  "description": "Security confinement model for the snap."
+                }
+              },
+              "additionalProperties": false
+            },
+            "flatpak": {
+              "type": "object",
+              "description": "Flatpak manifest settings.",
+              "additionalProperties": false
+            },
+            "nix": {
+              "type": "object",
+              "description": "Nix flake derivation settings.",
+              "additionalProperties": false
+            },
+            "macports": {
+              "type": "object",
+              "description": "macOS MacPorts Portfile settings.",
+              "additionalProperties": false
+            },
+            "appimage": {
+              "type": "object",
+              "description": "Linux AppImage packaging settings.",
+              "additionalProperties": false
+            },
+            "asdf_mise": {
+              "type": "object",
+              "description": "asdf / mise polyglot runtime tool manager plugin settings.",
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "install_scripts": {
+      "type": "object",
+      "description": "Universal standalone shell and PowerShell installer script settings.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to generate universal standalone installer scripts (install.sh & install.ps1)."
+        },
+        "sh_name": {
+          "type": "string",
+          "default": "install.sh",
+          "description": "Target filename for the POSIX shell installer."
+        },
+        "ps1_name": {
+          "type": "string",
+          "default": "install.ps1",
+          "description": "Target filename for the PowerShell installer."
+        },
+        "install_dir_unix": {
+          "type": "string",
+          "default": "/usr/local/bin",
+          "description": "Default installation directory on Linux and macOS."
+        },
+        "install_dir_win": {
+          "type": "string",
+          "default": "$HOME/.local/bin",
+          "description": "Default installation directory on Windows."
+        }
+      },
+      "additionalProperties": false
+    },
+    "output_dir": {
+      "type": "string",
+      "default": "dist",
+      "description": "Relative output directory where compiled binaries, release archives, checksums, and manifests are written."
+    }
+  },
+  "additionalProperties": false
+}

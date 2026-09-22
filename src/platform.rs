@@ -47,6 +47,32 @@ impl TargetPlatform {
         Self { os, arch }
     }
 
+    /// Returns the target platform representing the current compilation host machine.
+    pub fn host() -> Self {
+        let os = if cfg!(target_os = "windows") {
+            OS::Windows
+        } else if cfg!(target_os = "macos") {
+            OS::Darwin
+        } else {
+            OS::Linux
+        };
+
+        let arch = if cfg!(target_arch = "x86_64") {
+            Arch::Amd64
+        } else if cfg!(target_arch = "aarch64") {
+            Arch::Arm64
+        } else {
+            Arch::Amd64
+        };
+
+        Self { os, arch }
+    }
+
+    /// Returns true if this platform matches the current compilation host.
+    pub fn is_host(&self) -> bool {
+        *self == Self::host()
+    }
+
     /// Rust compiler target triple.
     pub fn rust_triple(&self) -> &'static str {
         match (self.os, self.arch) {
@@ -190,5 +216,18 @@ mod tests {
         assert_eq!("linux/amd64".parse::<TargetPlatform>().unwrap(), TargetPlatform::new(OS::Linux, Arch::Amd64));
         assert_eq!("macos/arm64".parse::<TargetPlatform>().unwrap(), TargetPlatform::new(OS::Darwin, Arch::Arm64));
         assert_eq!("win-x64".parse::<TargetPlatform>().unwrap(), TargetPlatform::new(OS::Windows, Arch::Amd64));
+    }
+
+    #[test]
+    fn test_host_platform() {
+        let host = TargetPlatform::host();
+        assert!(host.is_host());
+
+        #[cfg(target_os = "windows")]
+        assert_eq!(host.os, OS::Windows);
+        #[cfg(target_os = "macos")]
+        assert_eq!(host.os, OS::Darwin);
+        #[cfg(target_os = "linux")]
+        assert_eq!(host.os, OS::Linux);
     }
 }

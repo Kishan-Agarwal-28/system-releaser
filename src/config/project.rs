@@ -39,6 +39,7 @@ impl Default for BuildConfig {
 pub enum PlatformsConfig {
     #[default]
     All,
+    Host,
     Specific(Vec<String>),
 }
 
@@ -49,6 +50,7 @@ impl Serialize for PlatformsConfig {
     {
         match self {
             PlatformsConfig::All => serializer.serialize_str("all"),
+            PlatformsConfig::Host => serializer.serialize_str("host"),
             PlatformsConfig::Specific(list) => list.serialize(serializer),
         }
     }
@@ -63,6 +65,7 @@ impl<'de> Deserialize<'de> for PlatformsConfig {
         let value = serde_yml::Value::deserialize(deserializer)?;
         match value {
             serde_yml::Value::String(s) if s.to_lowercase() == "all" => Ok(PlatformsConfig::All),
+            serde_yml::Value::String(s) if s.to_lowercase() == "host" => Ok(PlatformsConfig::Host),
             serde_yml::Value::Sequence(seq) => {
                 let mut list = Vec::new();
                 for item in seq {
@@ -74,7 +77,7 @@ impl<'de> Deserialize<'de> for PlatformsConfig {
                 }
                 Ok(PlatformsConfig::Specific(list))
             }
-            _ => Err(D::Error::custom("Platforms must be 'all' or a list of platform targets")),
+            _ => Err(D::Error::custom("Platforms must be 'all', 'host', or a list of platform targets")),
         }
     }
 }
@@ -308,5 +311,18 @@ package_managers:
         assert_eq!(cfg.package_managers.enabled.len(), 2);
         assert!(cfg.package_managers.options.contains_key("homebrew"));
         assert!(cfg.package_managers.options.contains_key("winget"));
+    }
+
+    #[test]
+    fn test_parse_platforms_host() {
+        let yaml = r#"
+name: host-tool
+platforms: host
+"#;
+        let cfg: ProjectConfig = serde_yml::from_str(yaml).unwrap();
+        assert_eq!(cfg.platforms, PlatformsConfig::Host);
+
+        let out = cfg.to_yaml().unwrap();
+        assert!(out.contains("platforms: host"));
     }
 }

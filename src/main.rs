@@ -117,6 +117,14 @@ enum Commands {
         #[arg(long, value_name = "SEMVER", conflicts_with_all = ["patch", "minor", "major"])]
         set_version: Option<String>,
 
+        /// Only build and package for the current host architecture (e.g. windows/amd64)
+        #[arg(long, alias = "host")]
+        host_only: bool,
+
+        /// Target specific platform(s) to compile (e.g. linux/amd64, windows/amd64). Repeatable.
+        #[arg(long = "platform", value_name = "PLATFORM")]
+        platforms: Vec<String>,
+
         /// Skip running tests prior to release
         #[arg(long)]
         skip_tests: bool,
@@ -244,6 +252,8 @@ fn main() {
             minor,
             major,
             set_version,
+            host_only,
+            platforms,
             skip_tests,
             dry_run,
         }) => {
@@ -266,9 +276,27 @@ fn main() {
                 None
             };
 
+            let target_platforms = if platforms.is_empty() {
+                None
+            } else {
+                let mut list = Vec::new();
+                for p in &platforms {
+                    match p.parse::<system_releaser::TargetPlatform>() {
+                        Ok(tp) => list.push(tp),
+                        Err(e) => {
+                            eprintln!("Error parsing platform target '{}': {}", p, e);
+                            process::exit(1);
+                        }
+                    }
+                }
+                Some(list)
+            };
+
             let options = ReleaseOptions {
                 project_dir: target_dir,
                 bump,
+                host_only,
+                target_platforms,
                 skip_tests,
                 dry_run,
             };

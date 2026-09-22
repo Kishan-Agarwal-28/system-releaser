@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://kishan-agarwal-28.github.io/system-releaser/schema.json
+
+name: system-releaser
+version: auto
+description: system-releaser CLI tool
+license: MIT
+icon_url: "https://raw.githubusercontent.com/user/system-releaser/main/assets/icon.png"
+platforms: all
+build:
+  mode: ci
+package_managers:
+  - winget
+  - choco
+  - scoop
+  - homebrew
+  - apt
+  - pacman
+  - rpm
+  - snap
+install_scripts:
+  enabled: true
+  sh_name: install.sh
+  ps1_name: install.ps1
+  install_dir_unix: /usr/local/bin
+  install_dir_win: $HOME/.local/bin
+output_dir: dist

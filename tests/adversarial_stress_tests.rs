@@ -408,6 +408,8 @@ output_dir: "../../../escaped_dir"
     let opts = ReleaseOptions {
         project_dir: dir.path().to_path_buf(),
         bump: None,
+        host_only: false,
+        target_platforms: None,
         skip_tests: true,
         dry_run: true,
     };
@@ -427,6 +429,8 @@ output_dir: "/etc/cron.d"
     let opts2 = ReleaseOptions {
         project_dir: dir.path().to_path_buf(),
         bump: None,
+        host_only: false,
+        target_platforms: None,
         skip_tests: true,
         dry_run: true,
     };
@@ -444,6 +448,8 @@ output_dir: "dist"
     let opts3 = ReleaseOptions {
         project_dir: dir.path().to_path_buf(),
         bump: None,
+        host_only: false,
+        target_platforms: None,
         skip_tests: true,
         dry_run: true,
     };

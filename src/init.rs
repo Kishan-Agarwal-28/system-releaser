@@ -88,7 +88,10 @@ pub fn init_project(options: InitOptions) -> Result<InitResult, Box<dyn std::err
         output_dir: "dist".to_string(),
     };
 
-    let yaml = config.to_yaml()?;
+    let yaml = format!(
+        "# yaml-language-server: $schema=https://kishan-agarwal-28.github.io/system-releaser/schema.json\n\n{}",
+        config.to_yaml()?
+    );
     fs::write(&config_file, yaml)?;
 
     Ok(InitResult {
@@ -119,6 +122,9 @@ mod tests {
         assert!(result.config_path.exists());
 
         // Check if generated file can be loaded
+        let content = fs::read_to_string(&result.config_path).unwrap();
+        assert!(content.contains("# yaml-language-server: $schema=https://kishan-agarwal-28.github.io/system-releaser/schema.json"));
+
         let (cfg, _) = ProjectConfig::load_from_dir(dir.path()).unwrap().unwrap();
         assert_eq!(cfg.name, "test-tool");
         assert_eq!(cfg.version, "auto");
