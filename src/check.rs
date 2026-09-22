@@ -94,6 +94,44 @@ pub fn run_preflight_checks(project_dir: &Path) -> CheckReport {
                 });
             }
         }
+
+        // Check cross-compilation readiness if multi-target builds are configured
+        let has_foreign_targets = if let Some(ref cfg) = project_config {
+            let host = crate::platform::TargetPlatform::host();
+            match cfg.platforms {
+                crate::config::PlatformsConfig::All => true,
+                crate::config::PlatformsConfig::Host => false,
+                crate::config::PlatformsConfig::Specific(ref list) => list.iter().any(|s| {
+                    s.parse::<crate::platform::TargetPlatform>()
+                        .map(|t| t != host)
+                        .unwrap_or(true)
+                }),
+            }
+        } else {
+            false
+        };
+
+        if has_foreign_targets && lang == crate::language::Language::Rust {
+            if crate::builder::is_cargo_zigbuild_available() {
+                items.push(CheckItem {
+                    name: "Cross-Compilation Toolchain".to_string(),
+                    status: CheckStatus::Pass,
+                    message: "Found cargo-zigbuild / zig for containerless multi-platform builds".to_string(),
+                });
+            } else if crate::builder::is_cross_available() {
+                items.push(CheckItem {
+                    name: "Cross-Compilation Toolchain".to_string(),
+                    status: CheckStatus::Pass,
+                    message: "Found 'cross' CLI for multi-platform builds".to_string(),
+                });
+            } else {
+                items.push(CheckItem {
+                    name: "Cross-Compilation Toolchain".to_string(),
+                    status: CheckStatus::Warning,
+                    message: "No cross-compilation toolchain detected (cargo-zigbuild/zig/cross). Multi-platform targets may be skipped during local releases. Install via 'pip install ziglang cargo-zigbuild' or 'cargo install cargo-zigbuild'.".to_string(),
+                });
+            }
+        }
     }
 
     // 3. Check Git repository status

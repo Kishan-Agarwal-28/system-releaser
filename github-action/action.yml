@@ -40,6 +40,14 @@ runs:
           fi
         fi
 
+    - name: Setup containerless cross-compilation toolchains
+      shell: bash
+      run: |
+        if command -v pip >/dev/null 2>&1; then
+          echo "Installing ziglang and cargo-zigbuild for multi-platform compilation..."
+          pip install --quiet ziglang cargo-zigbuild || true
+        fi
+
     - name: Execute system-releaser release
       shell: bash
       env:
@@ -66,4 +74,24 @@ runs:
         fi
         echo "Executing: system-releaser ${ARGS[*]}"
         system-releaser "${ARGS[@]}"
+
+    - name: Commit and push updated README installation guide
+      shell: bash
+      run: |
+        if [ -n "$(git status --porcelain README.md 2>/dev/null)" ] || [ -n "$(git status --porcelain readme.md 2>/dev/null)" ]; then
+          echo "Detected updated README from system-releaser. Committing and pushing back to repository..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md readme.md 2>/dev/null || true
+          git commit -m "docs: update README installation guide for release [skip ci]" || true
+
+          CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+          if [ "$CURRENT_BRANCH" = "HEAD" ]; then
+            DEFAULT_BRANCH="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')"
+            [ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH="main"
+            git push origin "HEAD:refs/heads/$DEFAULT_BRANCH" || git push origin "HEAD:refs/heads/master" || true
+          else
+            git push origin "$CURRENT_BRANCH" || true
+          fi
+        fi
 

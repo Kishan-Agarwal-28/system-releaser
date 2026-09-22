@@ -1,7 +1,7 @@
 # system-releaser
 
 [![Rust](https://img.shields.io/badge/rust-edition%202024-orange.svg)](https://www.rust-lang.org/)
-[![Tests](https://img.shields.io/badge/tests-100%2F100%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-112%2F112%20passing-brightgreen.svg)]()
 [![Clippy](https://img.shields.io/badge/clippy-0%20warnings-brightgreen.svg)]()
 [![Security](https://img.shields.io/badge/security-hardened%20(CWE--78%2C%2022%2C%2094%2C%20214)-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -27,19 +27,133 @@ With zero or minimal configuration, `system-releaser` automatically inspects you
 
 ---
 
-## Installation & Quick Start
+<!-- system-releaser:install:start -->
+## Installation
 
-### Build from Source
+### 1. One-Line Installers (Recommended)
+
+#### Linux & macOS (Shell)
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kishan-Agarwal-28/system-releaser/main/dist/install.sh | sh
+```
+*Supports x86_64 and ARM64. Automatically validates SHA-256 checksums and installs to `/usr/local/bin` (or `~/.local/bin` without root).*
+
+#### Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/Kishan-Agarwal-28/system-releaser/main/dist/install.ps1 | iex
+```
+*Installs to `$HOME/.local/bin` and automatically adds the directory to your user PATH.*
+
+---
+
+### 2. Pre-Built Binary Direct Downloads
+
+Download standalone binaries directly for your operating system and architecture:
+
+| Platform | Architecture | Archive | Checksum |
+|---|---|---|---|
+| **Linux** | x86_64 (`amd64`) | [system-releaser_0.1.0_linux_amd64.tar.gz](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/system-releaser_0.1.0_linux_amd64.tar.gz) | [SHA-256](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt) |
+| **Linux** | ARM64 (`aarch64`) | [system-releaser_0.1.0_linux_arm64.tar.gz](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/system-releaser_0.1.0_linux_arm64.tar.gz) | [SHA-256](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt) |
+| **macOS** | Apple Silicon (`arm64`) | [system-releaser_0.1.0_darwin_arm64.tar.gz](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/system-releaser_0.1.0_darwin_arm64.tar.gz) | [SHA-256](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt) |
+| **macOS** | Intel (`x86_64`) | [system-releaser_0.1.0_darwin_amd64.tar.gz](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/system-releaser_0.1.0_darwin_amd64.tar.gz) | [SHA-256](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt) |
+| **Windows** | x86_64 (`amd64`) | [system-releaser_0.1.0_windows_amd64.zip](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/system-releaser_0.1.0_windows_amd64.zip) | [SHA-256](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt) |
+| **Windows** | ARM64 (`aarch64`) | [system-releaser_0.1.0_windows_arm64.zip](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/system-releaser_0.1.0_windows_arm64.zip) | [SHA-256](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt) |
+
+All release archives are verified against the cryptographic hashes in [`checksums.txt`](https://github.com/Kishan-Agarwal-28/system-releaser/releases/download/v0.1.0/checksums.txt).
+
+---
+
+### 3. Package Managers
+
+#### Windows Package Manager (WinGet)
+```cmd
+winget install Kishan-Agarwal-28.system-releaser
+```
+
+#### Homebrew (macOS & Linux)
+```bash
+brew install Kishan-Agarwal-28/tap/system-releaser
+```
+
+#### Scoop (Windows)
+```powershell
+scoop install https://raw.githubusercontent.com/Kishan-Agarwal-28/system-releaser/main/dist/system-releaser.json
+```
+
+#### Cargo (From Crates.io or Git)
+```bash
+# Install directly via cargo from git
+cargo install --git https://github.com/Kishan-Agarwal-28/system-releaser.git
+```
+
+---
+
+### 4. Containerless Cross-Compilation (No Docker Required)
+
+`system-releaser` supports industry-grade, containerless cross-compilation across Linux, macOS, and Windows targets using `zig` and `cargo-zigbuild`.
+
+To enable multi-platform releases from your local machine without running Docker:
 
 ```bash
-# Clone repository
-git clone https://github.com/your-org/system-releaser.git
-cd system-releaser
+# Option A: Universal fast install via pip (works on Linux, Windows, macOS)
+pip install ziglang cargo-zigbuild
 
-# Compile release binary
+# Option B: Windows via WinGet and Cargo
+winget install zig.zig
+cargo install cargo-zigbuild
+
+# Option C: macOS via Homebrew
+brew install zig
+cargo install cargo-zigbuild
+```
+
+Once installed, `system-releaser` automatically detects `cargo-zigbuild` and compiles all target platforms with zero configuration.
+
+---
+
+### 5. GitHub Actions Release Workflow
+
+Ship multi-platform releases automatically on every tag push:
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run system-releaser
+        uses: Kishan-Agarwal-28/system-releaser-action@v0.0.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+<!-- system-releaser:install:end -->
+
+---
+
+### 6. Build from Source
+
+```bash
+git clone https://github.com/Kishan-Agarwal-28/system-releaser.git
+cd system-releaser
 cargo build --release
 
-# Binary will be located at target/release/system-releaser
+# The compiled binary is at target/release/system-releaser
 ```
 
 ### Quick Workflow
@@ -124,9 +238,9 @@ In addition to system package managers, `system-releaser` generates self-contain
 
 ### POSIX Shell (`install.sh`)
 ```bash
-curl -fsSL https://github.com/user/my-cli/releases/latest/download/install.sh | sh
-# Or with wget:
-wget -qO- https://github.com/user/my-cli/releases/latest/download/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Kishan-Agarwal-28/system-releaser/main/dist/install.sh | sh
+# Or from GitHub Releases:
+curl -fsSL https://github.com/Kishan-Agarwal-28/system-releaser/releases/latest/download/install.sh | sh
 ```
 - Automatically detects OS (`linux`, `darwin`, `freebsd`) and architecture (`amd64`, `arm64`).
 - Downloads and cryptographically verifies release tarballs against `checksums.txt` using anchored `awk` parsing.
@@ -135,7 +249,9 @@ wget -qO- https://github.com/user/my-cli/releases/latest/download/install.sh | s
 
 ### Windows PowerShell (`install.ps1`)
 ```powershell
-irm https://github.com/user/my-cli/releases/latest/download/install.ps1 | iex
+irm https://raw.githubusercontent.com/Kishan-Agarwal-28/system-releaser/main/dist/install.ps1 | iex
+# Or from GitHub Releases:
+irm https://github.com/Kishan-Agarwal-28/system-releaser/releases/latest/download/install.ps1 | iex
 ```
 - Detects architecture (`amd64` or `arm64`), cleanly rejecting unsupported 32-bit environments.
 - Downloads release `.zip` and verifies SHA-256 using `Get-FileHash`.
@@ -312,7 +428,7 @@ jobs:
       # Toolchain setup steps as needed
 
       - name: Run system-releaser
-        uses: ./github-action
+        uses: Kishan-Agarwal-28/system-releaser-action@v0.0.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           extra_args: "--skip-tests"
@@ -344,11 +460,12 @@ cargo test
 cargo clippy --all-targets -- -D warnings
 ```
 
-The test suite contains **100 tests** covering:
+The test suite contains **112 tests** covering:
 - Language detection heuristics across 23 languages and monorepo ancestors.
 - Preflight validation checks and token requirements.
 - Semver bump arithmetic and manifest synchronization.
 - Atomic archive generation and SHA-256 calculation.
+- Automated README installation guide generation and injection.
 - Syntax and escaping validation across all 14 package manager manifest generators.
 - Adversarial stress tests for path traversal, metacharacter escaping, and shell injection.
 

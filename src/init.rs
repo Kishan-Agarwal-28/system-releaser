@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::config::{
     BuildConfig, BuildMode, InstallScriptsConfig, PackageManagersConfig, PlatformsConfig,
-    ProjectConfig,
+    ProjectConfig, ReadmeConfig,
 };
 use crate::detector::detect_language;
 use crate::metadata::ProjectMetadata;
@@ -85,6 +85,7 @@ pub fn init_project(options: InitOptions) -> Result<InitResult, Box<dyn std::err
             options: std::collections::HashMap::new(),
         },
         install_scripts: InstallScriptsConfig::default(),
+        readme: ReadmeConfig::default(),
         output_dir: "dist".to_string(),
     };
 

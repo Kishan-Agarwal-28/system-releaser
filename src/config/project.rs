@@ -239,8 +239,67 @@ pub struct ProjectConfig {
     #[serde(default)]
     pub install_scripts: InstallScriptsConfig,
 
+    #[serde(default)]
+    pub readme: ReadmeConfig,
+
     #[serde(default = "default_output_dir")]
     pub output_dir: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ReadmeConfig {
+    #[serde(default = "default_true")]
+    pub update: bool,
+
+    #[serde(default = "default_readme_file")]
+    pub file: String,
+}
+
+fn default_readme_file() -> String {
+    "README.md".to_string()
+}
+
+impl Default for ReadmeConfig {
+    fn default() -> Self {
+        Self {
+            update: true,
+            file: default_readme_file(),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ReadmeConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_yml::Value::deserialize(deserializer)?;
+        match value {
+            serde_yml::Value::Bool(b) => Ok(ReadmeConfig {
+                update: b,
+                file: default_readme_file(),
+            }),
+            serde_yml::Value::String(s) => Ok(ReadmeConfig {
+                update: true,
+                file: s,
+            }),
+            serde_yml::Value::Mapping(map) => {
+                let mut cfg = ReadmeConfig::default();
+                if let Some(val) = map.get("update") {
+                    if let serde_yml::Value::Bool(b) = val {
+                        cfg.update = *b;
+                    }
+                }
+                if let Some(val) = map.get("file") {
+                    if let serde_yml::Value::String(s) = val {
+                        cfg.file = s.clone();
+                    }
+                }
+                Ok(cfg)
+            }
+            _ => Ok(ReadmeConfig::default()),
+        }
+    }
 }
 
 fn default_version_auto() -> String {

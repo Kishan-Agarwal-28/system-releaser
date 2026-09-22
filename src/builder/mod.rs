@@ -471,6 +471,33 @@ pub(crate) fn execute_tool_or_fallback(
 // Language Builders: Rust & Go
 // ---------------------------------------------------------------------------
 
+/// Checks if `cargo zigbuild` is available for containerless cross-compilation.
+pub fn is_cargo_zigbuild_available() -> bool {
+    Command::new("cargo")
+        .args(["zigbuild", "--version"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+        || {
+            let check_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
+            Command::new(check_cmd)
+                .arg("cargo-zigbuild")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        }
+}
+
+/// Checks if `cross` (cargo-cross) is available for cross-compilation.
+pub fn is_cross_available() -> bool {
+    let check_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
+    Command::new(check_cmd)
+        .arg("cross")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 fn build_rust(
     project_dir: &Path,
     app_name: &str,
@@ -480,14 +507,39 @@ fn build_rust(
     let triple = target.rust_triple();
     let is_host = target.is_host();
 
-    let mut cmd = Command::new("cargo");
-    if is_host {
-        cmd.args(["build", "--release"]).current_dir(project_dir);
+    let (mut cmd, used_tool, target_triple_used) = if is_host {
+        let mut c = Command::new("cargo");
+        c.args(["build", "--release"]).current_dir(project_dir);
+        (c, "cargo", triple)
     } else {
-        // Attempt to ensure target is installed if rustup is available
-        let _ = Command::new("rustup").args(["target", "add", triple]).output();
-        cmd.args(["build", "--release", "--target", triple]).current_dir(project_dir);
-    }
+        // Cross-compiling for foreign architecture
+        // When cross-compiling for Windows from non-Windows hosts, the GNU target works seamlessly with Zig/MinGW
+        let effective_triple = if target.os == crate::platform::OS::Windows && !target.is_host() {
+            match target.arch {
+                crate::platform::Arch::Amd64 => "x86_64-pc-windows-gnu",
+                crate::platform::Arch::Arm64 => "aarch64-pc-windows-gnullvm",
+            }
+        } else {
+            triple
+        };
+
+        // Ensure target is installed in rustup
+        let _ = Command::new("rustup").args(["target", "add", effective_triple]).output();
+
+        if is_cargo_zigbuild_available() {
+            let mut c = Command::new("cargo");
+            c.args(["zigbuild", "--release", "--target", effective_triple]).current_dir(project_dir);
+            (c, "cargo-zigbuild", effective_triple)
+        } else if is_cross_available() {
+            let mut c = Command::new("cross");
+            c.args(["build", "--release", "--target", effective_triple]).current_dir(project_dir);
+            (c, "cross", effective_triple)
+        } else {
+            let mut c = Command::new("cargo");
+            c.args(["build", "--release", "--target", effective_triple]).current_dir(project_dir);
+            (c, "cargo", effective_triple)
+        }
+    };
 
     let output = cmd.output();
     match output {
@@ -501,7 +553,7 @@ fn build_rust(
             } else {
                 project_dir
                     .join("target")
-                    .join(triple)
+                    .join(target_triple_used)
                     .join("release")
                     .join(&binary_name)
             };
@@ -515,10 +567,11 @@ fn build_rust(
 
             if !target_binary.is_file() {
                 if is_test_mode() {
-                    synthesize_mock_artifact(target_binary, Language::Rust, "cargo")?;
+                    synthesize_mock_artifact(target_binary, Language::Rust, used_tool)?;
                 } else {
                     return Err(format!(
-                        "Cargo build succeeded but artifact at '{}' was missing.",
+                        "Cargo build succeeded with '{}' but artifact at '{}' was missing.",
+                        used_tool,
                         target_binary.display()
                     ).into());
                 }
@@ -538,14 +591,14 @@ fn build_rust(
                     return Err(format!("Cargo build for host failed:\n{}", stderr.trim()).into());
                 } else {
                     return Err(format!(
-                        "Cross-compilation for target '{}' ({}) failed:\n{}",
-                        target, triple, stderr.trim()
+                        "Cross-compilation for target '{}' ({}) using '{}' failed:\n{}\n\nTip: For containerless cross-compilation without Docker, install zig and cargo-zigbuild:\n  pip install ziglang cargo-zigbuild\n  or cargo install cargo-zigbuild",
+                        target, target_triple_used, used_tool, stderr.trim()
                     ).into());
                 }
             }
 
             // In test mode, synthesize mock artifact for unit tests
-            synthesize_mock_artifact(target_binary, Language::Rust, "cargo")?;
+            synthesize_mock_artifact(target_binary, Language::Rust, used_tool)?;
             let warn_tag = if !is_host {
                 format!("[WARN: host-arch fallback for {}]\n", target)
             } else {
@@ -556,12 +609,12 @@ fn build_rust(
                 target: *target,
                 binary_path: target_binary.to_path_buf(),
                 success: true,
-                output: format!("{}[MOCK BUILD: Cargo build in test mode for Rust]", warn_tag),
+                output: format!("{}[MOCK BUILD: {} build in test mode for Rust]", warn_tag, used_tool),
             })
         }
         Err(err) => {
             if is_test_mode() {
-                synthesize_mock_artifact(target_binary, Language::Rust, "cargo")?;
+                synthesize_mock_artifact(target_binary, Language::Rust, used_tool)?;
                 let warn_tag = if !is_host {
                     format!("[WARN: host-arch fallback for {}]\n", target)
                 } else {
@@ -571,10 +624,10 @@ fn build_rust(
                     target: *target,
                     binary_path: target_binary.to_path_buf(),
                     success: true,
-                    output: format!("{}[MOCK BUILD: Cargo execution error in test mode: {}]", warn_tag, err),
+                    output: format!("{}[MOCK BUILD: {} execution error in test mode: {}]", warn_tag, used_tool, err),
                 })
             } else {
-                Err(format!("Failed to execute cargo build for target '{}': {}", target, err).into())
+                Err(format!("Failed to execute '{}' for target '{}': {}", used_tool, target, err).into())
             }
         }
     }

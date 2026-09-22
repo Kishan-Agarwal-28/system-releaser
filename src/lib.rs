@@ -11,6 +11,7 @@ pub mod language;
 pub mod metadata;
 pub mod package_manager;
 pub mod platform;
+pub mod readme;
 pub mod release;
 pub mod test_runner;
 pub mod upload;
@@ -22,7 +23,7 @@ pub use check::{run_preflight_checks, CheckItem, CheckReport, CheckStatus};
 pub use ci::generate_github_action_workflow;
 pub use config::{
     BuildConfig, BuildMode, GlobalConfig, InstallScriptsConfig, PackageManagersConfig,
-    PlatformsConfig, ProjectConfig,
+    PlatformsConfig, ProjectConfig, ReadmeConfig,
 };
 pub use detector::{detect_language, Confidence, DetectionResult, LanguageStat};
 pub use generators::{generate_all_manifests, ManifestGenerationContext};
@@ -32,6 +33,7 @@ pub use language::Language;
 pub use metadata::ProjectMetadata;
 pub use package_manager::{PackageManager, TargetOs};
 pub use platform::{Arch, TargetPlatform, OS};
+pub use readme::{generate_installation_markdown, update_readme_installation_section};
 pub use release::{execute_release, ReleaseOptions, ReleaseSummary};
 pub use test_runner::{run_project_tests, TestRunResult};
 pub use upload::{upload_release_assets, UploadResult};

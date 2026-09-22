@@ -187,7 +187,7 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
                     return Err(format!("Host build failed for target '{}': {}", target, err).into());
                 } else {
                     println!("Notice: Skipping target '{}' (cross-compilation unavailable on this host).", target);
-                    println!("  (Tip: Run in GitHub Actions CI for multi-platform releases, or use '--host-only' for local releases)");
+                    println!("  (Tip: Run in CI or install cargo-zigbuild: 'pip install ziglang cargo-zigbuild' / 'cargo install cargo-zigbuild')");
                 }
             }
         }
@@ -201,19 +201,52 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
     let checksums_file = generate_checksums_file(&output_dir, &archives)?;
 
     // 9. Generate universal installers and package manager manifests
+    let resolved_repo = resolve_repository(dir, config.repository.as_deref());
+    let mut effective_config = config.clone();
+    if effective_config.repository.is_none() {
+        effective_config.repository = resolved_repo.clone();
+    }
     let ctx = ManifestGenerationContext {
-        config: &config,
+        config: &effective_config,
         version: &target_version.to_string(),
         hashes: &hashes,
     };
     let manifests = generate_all_manifests(&output_dir, &ctx)?;
 
-    // 10. Upload assets to GitHub Releases (skipped if dry_run or missing token)
+    // 10. Update repository README with installation guide
+    if config.readme.update && !options.dry_run {
+        match crate::readme::update_readme_installation_section(
+            dir,
+            &config.readme.file,
+            &config.name,
+            &target_version.to_string(),
+            resolved_repo.as_deref(),
+            &targets,
+            &hashes,
+            &config.package_managers.enabled,
+            config.install_scripts.enabled,
+            clean_output_dir,
+        ) {
+            Ok(Some(readme_path)) => {
+                println!(
+                    "  ✓ Updated '{}' with installation guide for v{}",
+                    readme_path.file_name().unwrap_or_default().to_string_lossy(),
+                    target_version
+                );
+            }
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!("WARN: Could not update README installation guide: {}", e);
+            }
+        }
+    }
+
+    // 11. Upload assets to GitHub Releases (skipped if dry_run or missing token)
     if !options.dry_run {
         let global_cfg = crate::config::GlobalConfig::load();
         let token = global_cfg.resolve_github_token();
         if let Some(token_val) = token {
-            if let Some(ref repo_str) = config.repository {
+            if let Some(ref repo_str) = resolved_repo {
                 println!("Uploading release assets to GitHub (repository: '{}')...", repo_str);
                 let mut all_assets = archives.clone();
                 all_assets.push(checksums_file.clone());
@@ -236,7 +269,7 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
                     }
                 }
             } else {
-                println!("Note: No 'repository' configured in releaser.yaml — skipping GitHub Release upload.");
+                println!("Note: No 'repository' configured in releaser.yaml and GITHUB_REPOSITORY not set — skipping GitHub Release upload.");
             }
         } else {
             println!("Note: GITHUB_TOKEN not set — skipping GitHub Release upload.");
@@ -250,6 +283,70 @@ pub fn execute_release(options: ReleaseOptions) -> Result<ReleaseSummary, Box<dy
         checksums_file,
         manifests,
     })
+}
+
+/// Resolves the repository identifier (e.g. "owner/repo") with multi-tier fallback:
+/// 1. Configured repository in releaser.yaml
+/// 2. GITHUB_REPOSITORY environment variable (automatically set by GitHub Actions runners)
+/// 3. Git remote origin URL from local git repository
+pub fn resolve_repository(project_dir: &Path, configured: Option<&str>) -> Option<String> {
+    if let Some(cfg_repo) = configured {
+        let trimmed = cfg_repo.trim();
+        if !trimmed.is_empty() {
+            return Some(clean_repo_identifier(trimmed));
+        }
+    }
+
+    // 1. Check GITHUB_REPOSITORY environment variable (automatically present in GitHub Actions)
+    if let Ok(gh_repo) = std::env::var("GITHUB_REPOSITORY") {
+        let trimmed = gh_repo.trim();
+        if !trimmed.is_empty() {
+            return Some(clean_repo_identifier(trimmed));
+        }
+    }
+
+    // 2. Check git remote origin URL
+    if let Ok(out) = std::process::Command::new("git")
+        .args(["config", "--get", "remote.origin.url"])
+        .current_dir(project_dir)
+        .output()
+    {
+        if out.status.success() {
+            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Some(repo) = parse_repo_from_git_url(&url) {
+                return Some(repo);
+            }
+        }
+    }
+
+    None
+}
+
+fn clean_repo_identifier(raw: &str) -> String {
+    let clean = raw
+        .trim()
+        .trim_start_matches("https://github.com/")
+        .trim_start_matches("http://github.com/")
+        .trim_end_matches(".git");
+    clean.to_string()
+}
+
+pub fn parse_repo_from_git_url(url: &str) -> Option<String> {
+    let clean = url.trim().trim_end_matches(".git");
+    if let Some(pos) = clean.find("github.com/") {
+        let after = &clean[pos + "github.com/".len()..];
+        let parts: Vec<&str> = after.split('/').collect();
+        if parts.len() >= 2 {
+            return Some(format!("{}/{}", parts[0], parts[1]));
+        }
+    } else if let Some(pos) = clean.find("github.com:") {
+        let after = &clean[pos + "github.com:".len()..];
+        let parts: Vec<&str> = after.split('/').collect();
+        if parts.len() >= 2 {
+            return Some(format!("{}/{}", parts[0], parts[1]));
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -355,5 +452,78 @@ platforms: host
         assert_eq!(summary.version, Version::new(0, 3, 0));
         assert_eq!(summary.built_binaries.len(), 1);
         assert_eq!(summary.archives.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_repo_from_git_urls() {
+        assert_eq!(
+            parse_repo_from_git_url("https://github.com/Kishan-Agarwal-28/system-releaser.git"),
+            Some("Kishan-Agarwal-28/system-releaser".to_string())
+        );
+        assert_eq!(
+            parse_repo_from_git_url("git@github.com:Kishan-Agarwal-28/system-releaser.git"),
+            Some("Kishan-Agarwal-28/system-releaser".to_string())
+        );
+        assert_eq!(
+            parse_repo_from_git_url("https://github.com/my-org/my-project"),
+            Some("my-org/my-project".to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_repository_fallback() {
+        let dir = tempdir().unwrap();
+        // 1. Configured takes precedence
+        assert_eq!(
+            resolve_repository(dir.path(), Some("custom/repo")),
+            Some("custom/repo".to_string())
+        );
+        // 2. Full URL is cleaned
+        assert_eq!(
+            resolve_repository(dir.path(), Some("https://github.com/clean/repo.git")),
+            Some("clean/repo".to_string())
+        );
+    }
+
+    #[test]
+    fn test_execute_release_updates_readme() {
+        let dir = tempdir().unwrap();
+
+        let cargo_toml = "[package]\nname = \"readme-test\"\nversion = \"0.1.0\"\n";
+        fs::write(dir.path().join("Cargo.toml"), cargo_toml).unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+        fs::write(dir.path().join("README.md"), "# Readme Test\n\nA small tool.\n").unwrap();
+
+        let releaser_yaml = r#"
+name: readme-test
+version: 0.1.0
+repository: test-owner/readme-test
+platforms: host
+build:
+  mode: ci
+readme:
+  update: true
+  file: README.md
+"#;
+        fs::write(dir.path().join("releaser.yaml"), releaser_yaml).unwrap();
+
+        let options = ReleaseOptions {
+            project_dir: dir.path().to_path_buf(),
+            bump: None,
+            host_only: true,
+            target_platforms: None,
+            skip_tests: true,
+            dry_run: false,
+        };
+
+        let summary = execute_release(options).unwrap();
+        assert_eq!(summary.version, Version::new(0, 1, 0));
+
+        let updated_readme = fs::read_to_string(dir.path().join("README.md")).unwrap();
+        assert!(updated_readme.contains("<!-- system-releaser:install:start -->"));
+        assert!(updated_readme.contains("## Installation"));
+        assert!(updated_readme.contains("test-owner/readme-test"));
+        assert!(updated_readme.contains("<!-- system-releaser:install:end -->"));
     }
 }

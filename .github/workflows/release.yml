@@ -19,7 +19,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install containerless cross-compilation toolchains
+        run: |
+          pip install --quiet ziglang cargo-zigbuild
+
       - name: Run system-releaser
-        uses:  Kishan-Agarwal-28/system-releaser-action@v0.0.1
+        uses: Kishan-Agarwal-28/system-releaser-action@v0.0.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

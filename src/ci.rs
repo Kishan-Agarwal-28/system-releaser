@@ -28,8 +28,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install containerless cross-compilation toolchains
+        run: |
+          pip install --quiet ziglang cargo-zigbuild
+
       - name: Run system-releaser
-        uses: system-releaser/release-action@v1
+        uses: Kishan-Agarwal-28/system-releaser-action@v0.0.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 "#;
@@ -50,7 +54,7 @@ mod tests {
         assert!(path.is_file());
 
         let content = fs::read_to_string(path).unwrap();
-        assert!(content.contains("system-releaser/release-action@v1"));
+        assert!(content.contains("Kishan-Agarwal-28/system-releaser-action@v0.0.1"));
         assert!(content.contains("tags:\n      - 'v*'"));
     }
 

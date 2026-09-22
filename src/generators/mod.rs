@@ -271,6 +271,7 @@ mod tests {
                 options: HashMap::new(),
             },
             install_scripts: crate::config::InstallScriptsConfig::default(),
+            readme: crate::config::ReadmeConfig::default(),
             output_dir: "dist".to_string(),
         };
 

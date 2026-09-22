@@ -64,6 +64,8 @@ pub fn upload_release_assets(
             &config_path_str,
             "-H",
             accept_header,
+            "-H",
+            "User-Agent: system-releaser",
             &tag_url,
         ])
         .output()?;
@@ -101,6 +103,8 @@ pub fn upload_release_assets(
                 &config_path_str,
                 "-H",
                 accept_header,
+                "-H",
+                "User-Agent: system-releaser",
                 "-H",
                 "Content-Type: application/json",
                 "-d",
@@ -166,6 +170,10 @@ pub fn upload_release_assets(
                 "-K",
                 &config_path_str,
                 "-H",
+                accept_header,
+                "-H",
+                "User-Agent: system-releaser",
+                "-H",
                 "Content-Type: application/octet-stream",
                 "--data-binary",
                 &format!("@{}", asset.display()),
@@ -173,13 +181,30 @@ pub fn upload_release_assets(
             ])
             .output()?;
 
-        if upload_cmd.status.success() {
+        let upload_success = if upload_cmd.status.success() {
+            if let Ok(json) = serde_json::from_slice::<Value>(&upload_cmd.stdout) {
+                json.get("id").is_some()
+                    || json.get("state").and_then(|v| v.as_str()) == Some("uploaded")
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if upload_success {
+            println!("  ✓ Uploaded asset: {}", file_name);
             uploaded.push(asset.clone());
         } else {
+            let err_info = if !upload_cmd.stdout.is_empty() {
+                String::from_utf8_lossy(&upload_cmd.stdout)
+            } else {
+                String::from_utf8_lossy(&upload_cmd.stderr)
+            };
             eprintln!(
                 "WARN: Failed to upload asset '{}': {}",
                 file_name,
-                String::from_utf8_lossy(&upload_cmd.stderr)
+                err_info.trim()
             );
         }
     }
